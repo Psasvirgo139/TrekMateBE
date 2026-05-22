@@ -1,0 +1,76 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: trekmate-backend
+
+  profiles:
+    active: dev   # Đổi thành "prod" khi deploy
+
+  # =============================================
+  # POSTGRESQL - Thay đổi các giá trị bên dưới
+  # =============================================
+  datasource:
+    url: jdbc:postgresql://localhost:5432/trekmate_db   # <-- tên database
+    username: postgres                                   # <-- username PostgreSQL
+    password: password                                   # <-- password PostgreSQL
+    driver-class-name: org.postgresql.Driver
+
+    # Connection Pool (HikariCP - mặc định của Spring Boot)
+    hikari:
+      pool-name: TrekMateHikariPool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000       # 5 phút
+      connection-timeout: 20000  # 20 giây
+      max-lifetime: 1200000      # 20 phút
+      auto-commit: true
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # create-drop (test) | update (dev) | validate (prod) | none (prod)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        # Tắt kiểm tra column definition khi ddl-auto=update để tránh lỗi columnDefinition khác nhau
+        globally_quoted_identifiers: false
+    open-in-view: false
+    # Không inject EntityManager vào view layer — quan trọng để tránh LazyInitializationException
+    defer-datasource-initialization: false
+
+  jackson:
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Ho_Chi_Minh
+    serialization:
+      write-dates-as-timestamps: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+    display-request-duration: true
+    try-it-out-enabled: true
+
+app:
+  name: TrekMate
+  version: 1.0.0
+
+logging:
+  level:
+    com.trekmate: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # log giá trị tham số SQL
+    com.zaxxer.hikari: INFO
