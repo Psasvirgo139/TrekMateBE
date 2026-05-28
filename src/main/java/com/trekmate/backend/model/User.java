@@ -1,4 +1,4 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,8 +7,6 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -47,6 +45,10 @@ public class User {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "is_admin", nullable = false)
+    @Builder.Default
+    private Boolean isAdmin = false;
+
     @Column(name = "last_login_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime lastLoginAt;
 
@@ -66,9 +68,4 @@ public class User {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Guide guide;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<UserRole> userRoles = new ArrayList<>();
 }
-

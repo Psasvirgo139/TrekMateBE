@@ -8,18 +8,21 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
+/**
+ * Base entity dùng cho các bảng nội bộ với BIGSERIAL PK (Long).
+ * Dùng thay vì BaseEntity (UUID) cho: Equipment, Review, DepartureWeatherDaily...
+ */
 @Getter
 @Setter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
-public abstract class BaseEntity {
+public abstract class LongBaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false,
@@ -31,4 +34,3 @@ public abstract class BaseEntity {
             columnDefinition = "TIMESTAMP")
     private LocalDateTime updatedAt;
 }
-

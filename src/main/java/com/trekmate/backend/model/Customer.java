@@ -1,6 +1,8 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.FitnessLevel;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -44,9 +46,10 @@ public class Customer extends BaseEntity {
     private String homeAddress;
 
     // JSONB: {"name":"...","phone":"...","relation":"..."}
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "emergency_contact", columnDefinition = "jsonb")
     @Builder.Default
-    private String emergencyContact = "{}";
+    private java.util.Map<String, Object> emergencyContact = new java.util.HashMap<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "fitness_level", length = 30)

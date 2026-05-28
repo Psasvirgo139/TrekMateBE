@@ -2,12 +2,14 @@ package com.trekmate.backend.config;
 
 import com.trekmate.backend.model.*;
 import com.trekmate.backend.model.embeddable.DepartureGuideId;
-import com.trekmate.backend.model.embeddable.UserRoleId;
 import com.trekmate.backend.model.enums.*;
 import com.trekmate.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+
+import java.util.List;
+import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +29,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
-    private final RoleRepository              roleRepository;
     private final UserRepository              userRepository;
-    private final UserRoleRepository          userRoleRepository;
     private final CustomerRepository          customerRepository;
     private final GuideRepository             guideRepository;
     private final TourRepository              tourRepository;
@@ -57,7 +57,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (roleRepository.count() > 0) {
+        if (userRepository.count() > 0) {
             log.info("[DataInitializer] Database đã có dữ liệu — bỏ qua seed.");
             return;
         }
@@ -65,7 +65,7 @@ public class DataInitializer implements CommandLineRunner {
 
         seedEquipmentCategories();
 
-        SeedUsers users = seedRolesAndUsers();
+        SeedUsers users = seedUsers();
         SeedTours tours = seedTours(users.admin());
 
         seedFansipanWaypointsAndItinerary(tours.fansipan());
@@ -125,58 +125,49 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     // ────────────────────────────────────────────────────────────────────────────
-    // Roles + Users + Customers + Guides
+    // Users + Customers + Guides
     // ────────────────────────────────────────────────────────────────────────────
 
-    private SeedUsers seedRolesAndUsers() {
-        Role roleCustomer = roleRepository.save(Role.builder()
-                .name("customer").description("Khách hàng đặt tour và thuê thiết bị").build());
-        Role roleGuide    = roleRepository.save(Role.builder()
-                .name("guide").description("Hướng dẫn viên trekking chuyên nghiệp").build());
-        Role roleAdmin    = roleRepository.save(Role.builder()
-                .name("admin").description("Quản trị viên hệ thống").build());
-
+    private SeedUsers seedUsers() {
         String pw = passwordEncoder.encode("Test@1234");
 
-        // ── Sơn: customer + guide
-        User userSon = createUser("son.nguyen@trailviet.vn", "0901234567", pw,
-                                  roleCustomer, roleGuide);
+        // ── Sơn: guide
+        User userSon = createUser("son.nguyen@trailviet.vn", "0901234567", pw, false);
         createCustomer(userSon, "Nguyễn Văn Sơn", "1988-03-21", FitnessLevel.ATHLETE);
         Guide son = createGuide(userSon, "Nguyễn Văn Sơn",
                 "HDV trekking 8 năm kinh nghiệm vùng Tây Bắc.", (short) 8,
-                "[{\"name\":\"Sơ cứu CPR\",\"issued_by\":\"Hội Chữ thập đỏ VN\",\"year\":2020}]",
-                "[\"vi\",\"en\"]", "[\"high-altitude\",\"winter-trekking\",\"survival\"]",
+                List.of(Map.of("name","Sơ cứu CPR","issued_by","Hội Chữ thập đỏ VN","year",2020)),
+                List.of("vi","en"), List.of("high-altitude","winter-trekking","survival"),
                 "Lào Cai", "4.98", 247, 312);
 
-        // ── Mai: customer + guide
-        User userMai = createUser("mai.tran@trailviet.vn", "0902345678", pw,
-                                  roleCustomer, roleGuide);
+        // ── Mai: guide
+        User userMai = createUser("mai.tran@trailviet.vn", "0902345678", pw, false);
         createCustomer(userMai, "Trần Thị Mai", "1990-07-08", FitnessLevel.ADVANCED);
         Guide mai = createGuide(userMai, "Trần Thị Mai",
                 "Chuyên gia tuyến đường miền Trung và Tây Nguyên.", (short) 6,
-                "[{\"name\":\"Wilderness First Aid\",\"issued_by\":\"NOLS\",\"year\":2021}]",
-                "[\"vi\",\"en\",\"fr\"]", "[\"jungle-trekking\",\"cultural-tour\",\"family-friendly\"]",
+                List.of(Map.of("name","Wilderness First Aid","issued_by","NOLS","year",2021)),
+                List.of("vi","en","fr"), List.of("jungle-trekking","cultural-tour","family-friendly"),
                 "Đà Nẵng", "4.95", 183, 241);
 
-        // ── Anh: guide only
-        User userAnh = createUser("anh.pham@trailviet.vn", "0903456789", pw, roleGuide);
+        // ── Anh: guide
+        User userAnh = createUser("anh.pham@trailviet.vn", "0903456789", pw, false);
         Guide anh = createGuide(userAnh, "Phạm Hùng Anh",
                 "Người con của đá Hà Giang, 10 năm chinh phục cung đường Đông Bắc.", (short) 10,
-                "[{\"name\":\"Rock Climbing Level 2\",\"issued_by\":\"Vietnam Mountaineering Federation\",\"year\":2018}]",
-                "[\"vi\",\"en\"]", "[\"rock-climbing\",\"extreme-trekking\",\"karst-landscape\"]",
+                List.of(Map.of("name","Rock Climbing Level 2","issued_by","Vietnam Mountaineering Federation","year",2018)),
+                List.of("vi","en"), List.of("rock-climbing","extreme-trekking","karst-landscape"),
                 "Hà Giang", "4.92", 418, 418);
 
-        // ── Hoa & Khiêm: customer only
-        User hoa   = createUser("hoa@example.com",   "0911111111", pw, roleCustomer);
+        // ── Hoa & Khiêm: customer
+        User hoa   = createUser("hoa@example.com",   "0911111111", pw, false);
         createCustomer(hoa, "Nguyễn Thị Hoa", "1992-05-14", FitnessLevel.INTERMEDIATE);
 
-        User khiem = createUser("khiem@example.com", "0922222222", pw, roleCustomer);
+        User khiem = createUser("khiem@example.com", "0922222222", pw, false);
         createCustomer(khiem, "Phạm Gia Khiêm", "1995-09-30", FitnessLevel.BEGINNER);
 
         // ── Admin
-        User admin = createUser("admin@trailviet.vn", "0800000001", pw, roleAdmin);
+        User admin = createUser("admin@trailviet.vn", "0800000001", pw, true);
 
-        log.info("[Seed] Roles, users, customers, guides created.");
+        log.info("[Seed] Users, customers, guides created.");
         return new SeedUsers(admin, hoa, khiem, son, mai, anh);
     }
 
@@ -193,10 +184,10 @@ public class DataInitializer implements CommandLineRunner {
                 .durationDays((short) 3).durationNights((short) 2)
                 .distanceKm(new BigDecimal("19.0")).maxElevationM(3147)
                 .startLocation("Sa Pa, Lào Cai").endLocation("Sa Pa, Lào Cai")
-                .highlights("[\"Đỉnh cao nhất Đông Dương 3147m\",\"Rừng nguyên sinh Hoàng Liên\",\"Sunrise trên mây\"]")
-                .includes("[\"HDV chuyên nghiệp\",\"Lều trại\",\"Bữa ăn trên đường\",\"Cứu thương cơ bản\"]")
-                .excludes("[\"Vé cáp treo\",\"Bảo hiểm du lịch\",\"Chi phí cá nhân\"]")
-                .requirements("[\"Sức khoẻ tốt, leo bộ 8h/ngày\",\"Kinh nghiệm trekking qua đêm\"]")
+                .highlights(List.of("Đỉnh cao nhất Đông Dương 3147m","Rừng nguyên sinh Hoàng Liên","Sunrise trên mây"))
+                .includes(List.of("HDV chuyên nghiệp","Lều trại","Bữa ăn trên đường","Cứu thương cơ bản"))
+                .excludes(List.of("Vé cáp treo","Bảo hiểm du lịch","Chi phí cá nhân"))
+                .requirements(List.of("Sức khoẻ tốt, leo bộ 8h/ngày","Kinh nghiệm trekking qua đêm"))
                 .status(TourStatus.ACTIVE).createdBy(admin.getId()).build());
 
         Tour taNang = tourRepository.save(Tour.builder()
@@ -207,10 +198,10 @@ public class DataInitializer implements CommandLineRunner {
                 .durationDays((short) 4).durationNights((short) 3)
                 .distanceKm(new BigDecimal("45.0")).maxElevationM(1920)
                 .startLocation("Đà Lạt, Lâm Đồng").endLocation("Phan Thiết, Bình Thuận")
-                .highlights("[\"Thảo nguyên Tà Năng rộng lớn\",\"Rừng thông cổ thụ\",\"Suối Vàng\"]")
-                .includes("[\"HDV\",\"Lều trại\",\"Bữa ăn\",\"Xe đưa đón điểm cuối\"]")
-                .excludes("[\"Bảo hiểm\",\"Chi phí cá nhân\"]")
-                .requirements("[\"Sức khoẻ bình thường\",\"Không yêu cầu kinh nghiệm trước\"]")
+                .highlights(List.of("Thảo nguyên Tà Năng rộng lớn","Rừng thông cổ thụ","Suối Vàng"))
+                .includes(List.of("HDV","Lều trại","Bữa ăn","Xe đưa đón điểm cuối"))
+                .excludes(List.of("Bảo hiểm","Chi phí cá nhân"))
+                .requirements(List.of("Sức khoẻ bình thường","Không yêu cầu kinh nghiệm trước"))
                 .status(TourStatus.ACTIVE).createdBy(admin.getId()).build());
 
         Tour mapiLeng = tourRepository.save(Tour.builder()
@@ -221,10 +212,10 @@ public class DataInitializer implements CommandLineRunner {
                 .durationDays((short) 2).durationNights((short) 1)
                 .distanceKm(new BigDecimal("28.0")).maxElevationM(1300)
                 .startLocation("Hà Giang").endLocation("Hà Giang")
-                .highlights("[\"Đèo Mã Pí Lèng hùng vĩ\",\"Sông Nho Quế xanh biếc\",\"Làng đá cổ Đồng Văn\"]")
-                .includes("[\"HDV địa phương\",\"Lều trại\",\"Bữa ăn\"]")
-                .excludes("[\"Di chuyển đến Hà Giang\",\"Bảo hiểm\"]")
-                .requirements("[\"Sức khoẻ tốt\",\"Không sợ độ cao\"]")
+                .highlights(List.of("Đèo Mã Pí Lèng hùng vĩ","Sông Nho Quế xanh biếc","Làng đá cổ Đồng Văn"))
+                .includes(List.of("HDV địa phương","Lều trại","Bữa ăn"))
+                .excludes(List.of("Di chuyển đến Hà Giang","Bảo hiểm"))
+                .requirements(List.of("Sức khoẻ tốt","Không sợ độ cao"))
                 .status(TourStatus.ACTIVE).createdBy(admin.getId()).build());
 
         log.info("[Seed] 3 tours created.");
@@ -319,7 +310,10 @@ public class DataInitializer implements CommandLineRunner {
                 .walkingHoursMin(new BigDecimal("6.0")).walkingHoursMax(new BigDecimal("8.0"))
                 .dayDifficulty(DifficultyLevel.MODERATE)
                 .suggestedStartTime(LocalTime.of(6, 0)).suggestedEndTime(LocalTime.of(15, 0))
-                .mealsIncluded("[{\"type\":\"breakfast\",\"location\":\"khách sạn Sa Pa (tự túc)\"},{\"type\":\"lunch\",\"location\":\"Nhà Gianh 2200m\"},{\"type\":\"dinner\",\"location\":\"tại bãi cắm trại 2800m\"}]")
+                .mealsIncluded(List.of(
+                        Map.of("type", "breakfast", "location", "khách sạn Sa Pa (tự túc)"),
+                        Map.of("type", "lunch",     "location", "Nhà Gianh 2200m"),
+                        Map.of("type", "dinner",    "location", "tại bãi cắm trại 2800m")))
                 .mealNotes("HDV nấu dinner tại trại. Hỏi dị ứng thực phẩm trước.")
                 .overnightNotes("Cắm trại cạnh suối. Giữ ấm sau hoàng hôn, nhiệt độ xuống 10-12°C.")
                 .safetyNotes("Đoạn dốc 40 độ sau km 4, dài 500m. Dùng gậy, từng bước.").build());
@@ -333,7 +327,10 @@ public class DataInitializer implements CommandLineRunner {
                 .walkingHoursMin(new BigDecimal("7.0")).walkingHoursMax(new BigDecimal("9.0"))
                 .dayDifficulty(DifficultyLevel.HARD)
                 .suggestedStartTime(LocalTime.of(4, 30)).suggestedEndTime(LocalTime.of(16, 0))
-                .mealsIncluded("[{\"type\":\"breakfast\",\"location\":\"tại trại (bữa nhẹ trước 5:00)\"},{\"type\":\"lunch\",\"location\":\"tại đỉnh hoặc trên đường xuống\"},{\"type\":\"dinner\",\"location\":\"tại bãi cắm trại 2800m\"}]")
+                .mealsIncluded(List.of(
+                        Map.of("type", "breakfast", "location", "tại trại (bữa nhẹ trước 5:00)"),
+                        Map.of("type", "lunch",     "location", "tại đỉnh hoặc trên đường xuống"),
+                        Map.of("type", "dinner",    "location", "tại bãi cắm trại 2800m")))
                 .mealNotes("Bữa sáng nhẹ: bánh mì + energy bar. Mang snack: chocolate, hạt, trái cây sấy.")
                 .overnightNotes("Về trại trước 16:00. Nghỉ ngơi phục hồi.")
                 .safetyNotes("QUAN TRỌNG: Sương mù < 20m sau điểm 3000m → dừng lại. Gió giật > 60km/h → hoãn.").build());
@@ -347,7 +344,10 @@ public class DataInitializer implements CommandLineRunner {
                 .walkingHoursMin(new BigDecimal("5.0")).walkingHoursMax(new BigDecimal("7.0"))
                 .dayDifficulty(DifficultyLevel.MODERATE)
                 .suggestedStartTime(LocalTime.of(7, 0)).suggestedEndTime(LocalTime.of(14, 0))
-                .mealsIncluded("[{\"type\":\"breakfast\",\"location\":\"tại trại\"},{\"type\":\"lunch\",\"location\":\"Nhà Gianh 2200m hoặc Trạm Tôn\"},{\"type\":\"dinner\",\"location\":\"tự túc tại Sa Pa\"}]")
+                .mealsIncluded(List.of(
+                        Map.of("type", "breakfast", "location", "tại trại"),
+                        Map.of("type", "lunch",     "location", "Nhà Gianh 2200m hoặc Trạm Tôn"),
+                        Map.of("type", "dinner",    "location", "tự túc tại Sa Pa")))
                 .mealNotes("Tháo trại sau breakfast. Bữa trưa tại Nhà Gianh nếu đến trước 13:00.")
                 .safetyNotes("Xuống đúng kỹ thuật: gối hơi co, gót chân chạm trước. Dùng gậy bắt buộc.").build());
 
@@ -407,7 +407,12 @@ public class DataInitializer implements CommandLineRunner {
         dep.setActualEndAt(LocalDateTime.of(2025, 4, 12, 16, 30, 0));
         dep.setActualParticipants((short) 10);
         dep.setDebriefNotes("Chuyến đi thuận lợi, thời tiết đẹp. Cả đoàn lên đỉnh thành công.");
-        dep.setIncidentLog("[{\"time\":\"2025-04-11T09:30:00+07:00\",\"type\":\"minor_injury\",\"note\":\"Thành viên bị đau gối phải khi xuống dốc\",\"handled_by\":\"son.nguyen@trailviet.vn\",\"resolved\":true}]");
+        dep.setIncidentLog(List.of(Map.of(
+                "time",       "2025-04-11T09:30:00+07:00",
+                "type",       "minor_injury",
+                "note",       "Thành viên bị đau gối phải khi xuống dốc",
+                "handled_by", "son.nguyen@trailviet.vn",
+                "resolved",   true)));
         departureRepository.save(dep);
     }
 
@@ -525,16 +530,10 @@ public class DataInitializer implements CommandLineRunner {
     // Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
-    private User createUser(String email, String phone, String pw, Role... roles) {
-        User user = userRepository.save(User.builder()
+    private User createUser(String email, String phone, String pw, boolean isAdmin) {
+        return userRepository.save(User.builder()
                 .email(email).phone(phone).passwordHash(pw)
-                .isVerified(true).isActive(true).build());
-        for (Role role : roles) {
-            userRoleRepository.save(UserRole.builder()
-                    .id(new UserRoleId(user.getId(), role.getId()))
-                    .user(user).role(role).build());
-        }
-        return user;
+                .isVerified(true).isActive(true).isAdmin(isAdmin).build());
     }
 
     private void createCustomer(User user, String fullName, String dob, FitnessLevel fitness) {
@@ -545,7 +544,8 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private Guide createGuide(User user, String displayName, String bio, short expYears,
-                               String certs, String langs, String specs,
+                               List<Map<String, Object>> certs,
+                               List<String> langs, List<String> specs,
                                String province, String rating, int totalReviews, int toursLed) {
         return guideRepository.save(Guide.builder()
                 .user(user).displayName(displayName).bio(bio)

@@ -1,6 +1,8 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.BookingStatus;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -11,7 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -29,9 +31,9 @@ import java.util.UUID;
 public class Booking {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @Column(name = "booking_code", nullable = false, unique = true, length = 20)
     private String bookingCode;
@@ -49,9 +51,10 @@ public class Booking {
     private Short numParticipants = 1;
 
     // JSONB: [{"name":"...","dob":"...","phone":"...","emergency_contact":"..."}]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "participants_info", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String participantsInfo = "[]";
+    private List<Map<String, Object>> participantsInfo = new ArrayList<>();
 
     @Column(name = "price_snapshot", nullable = false, precision = 12, scale = 2)
     private BigDecimal priceSnapshot;
@@ -118,4 +121,3 @@ public class Booking {
     @Builder.Default
     private List<Payment> payments = new ArrayList<>();
 }
-

@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 import java.util.UUID;
 @Repository
 public interface ReviewHelpfulRepository extends JpaRepository<ReviewHelpful, ReviewHelpfulId> {
-    long countByReviewId(UUID reviewId);
+    long countByReviewId(Long reviewId);
 }

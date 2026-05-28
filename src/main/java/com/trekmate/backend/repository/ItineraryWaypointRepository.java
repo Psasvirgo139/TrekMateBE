@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface ItineraryWaypointRepository extends JpaRepository<ItineraryWaypoint, UUID> {
+public interface ItineraryWaypointRepository extends JpaRepository<ItineraryWaypoint, Long> {
     List<ItineraryWaypoint> findByItineraryIdOrderByVisitOrderAsc(UUID itineraryId);
 }
+

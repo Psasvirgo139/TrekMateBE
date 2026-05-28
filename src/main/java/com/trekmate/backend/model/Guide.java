@@ -1,5 +1,7 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -8,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -45,19 +48,22 @@ public class Guide extends BaseEntity {
     private Short experienceYears = 0;
 
     // JSONB: [{"name":"...","issued_by":"...","year":2021}]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "certifications", columnDefinition = "jsonb")
     @Builder.Default
-    private String certifications = "[]";
+    private List<Map<String, Object>> certifications = new ArrayList<>();
 
     // JSONB: ["vi","en"]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "languages", columnDefinition = "jsonb")
     @Builder.Default
-    private String languages = "[\"vi\"]";
+    private List<String> languages = new ArrayList<>();
 
     // JSONB: ["high-altitude","survival"]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "specializations", columnDefinition = "jsonb")
     @Builder.Default
-    private String specializations = "[]";
+    private List<String> specializations = new ArrayList<>();
 
     @Column(name = "id_card_number", unique = true, length = 20)
     private String idCardNumber;

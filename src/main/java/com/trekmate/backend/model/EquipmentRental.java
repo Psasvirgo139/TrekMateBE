@@ -1,4 +1,4 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.EquipmentCondition;
 import jakarta.persistence.*;
@@ -21,9 +21,9 @@ import java.util.UUID;
 public class EquipmentRental {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id", nullable = false)
@@ -65,4 +65,6 @@ public class EquipmentRental {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }
+
+
 

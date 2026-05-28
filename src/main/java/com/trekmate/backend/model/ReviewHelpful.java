@@ -1,4 +1,4 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.embeddable.ReviewHelpfulId;
 import jakarta.persistence.*;

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 @Repository
-public interface TourImageRepository extends JpaRepository<TourImage, UUID> {
+public interface TourImageRepository extends JpaRepository<TourImage, Long> {
     List<TourImage> findByTourIdOrderBySortOrderAsc(UUID tourId);
 }
+

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 @Repository
-public interface EquipmentRentalRepository extends JpaRepository<EquipmentRental, UUID> {
-    List<EquipmentRental> findByBookingId(UUID bookingId);
+public interface EquipmentRentalRepository extends JpaRepository<EquipmentRental, Long> {
+    List<EquipmentRental> findByBookingId(Long bookingId);
 }
+

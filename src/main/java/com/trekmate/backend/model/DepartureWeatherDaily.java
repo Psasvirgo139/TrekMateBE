@@ -1,4 +1,4 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.WarningLevel;
 import jakarta.persistence.*;
@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
                columnNames = {"departure_id", "day_number"}
        ))
 @EntityListeners(AuditingEntityListener.class)
-public class DepartureWeatherDaily extends BaseEntity {
+public class DepartureWeatherDaily extends LongBaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "departure_id", nullable = false)
@@ -117,4 +117,3 @@ public class DepartureWeatherDaily extends BaseEntity {
     @Builder.Default
     private Boolean isActual = false;
 }
-

@@ -1,6 +1,8 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.DepartureStatus;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -115,14 +117,16 @@ public class TourDeparture extends BaseEntity {
     private Short actualParticipants;
 
     // JSONB: [{"time":"...","type":"injury","note":"...","handled_by":"..."}]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "incident_log", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String incidentLog = "[]";
+    private List<java.util.Map<String, Object>> incidentLog = new ArrayList<>();
 
     // JSONB: [{"reason":"weather","original":"...","actual":"..."}]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "route_deviations", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String routeDeviations = "[]";
+    private List<java.util.Map<String, Object>> routeDeviations = new ArrayList<>();
 
     @Column(name = "debrief_notes", columnDefinition = "TEXT")
     private String debriefNotes;

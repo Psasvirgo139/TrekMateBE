@@ -1,10 +1,14 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -19,7 +23,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_reviews_user",      columnList = "user_id")
 })
 @EntityListeners(AuditingEntityListener.class)
-public class Review extends BaseEntity {
+public class Review extends LongBaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -69,9 +73,10 @@ public class Review extends BaseEntity {
     private String comment;
 
     // JSONB: ["url1","url2"]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "photos", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String photos = "[]";
+    private List<String> photos = new ArrayList<>();
 
     @Column(name = "is_anonymous", nullable = false)
     @Builder.Default
@@ -95,4 +100,7 @@ public class Review extends BaseEntity {
     @Builder.Default
     private Integer helpfulCount = 0;
 }
+
+
+
 

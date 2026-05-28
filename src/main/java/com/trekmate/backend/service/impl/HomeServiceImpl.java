@@ -1,7 +1,5 @@
 package com.trekmate.backend.service.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trekmate.backend.dto.response.*;
 import com.trekmate.backend.model.*;
 import com.trekmate.backend.model.enums.DepartureStatus;
@@ -35,7 +33,6 @@ public class HomeServiceImpl implements HomeService {
     private final DepartureWeatherDailyRepository weatherDailyRepository;
     private final GuideRepository                 guideRepository;
     private final BookingRepository               bookingRepository;
-    private final ObjectMapper                    objectMapper;
 
     // ────────────────────────────────────────────────────────────────────────────
 
@@ -99,7 +96,7 @@ public class HomeServiceImpl implements HomeService {
                 t.getStatus(),
                 priceFrom,
                 upcoming,
-                parseJsonArray(t.getHighlights())
+                t.getHighlights()
         );
     }
 
@@ -218,25 +215,12 @@ public class HomeServiceImpl implements HomeService {
                 g.getTotalReviews(),
                 g.getTotalToursLed(),
                 g.getIsAvailable(),
-                parseJsonArray(g.getLanguages()),
-                parseJsonArray(g.getSpecializations()),
+                g.getLanguages(),
+                g.getSpecializations(),
                 upcoming
         );
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ────────────────────────────────────────────────────────────────────────────
-
-    private List<String> parseJsonArray(String json) {
-        if (json == null || json.isBlank() || "[]".equals(json.trim())) return List.of();
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
-        } catch (Exception e) {
-            log.warn("Failed to parse JSON array: {}", json);
-            return List.of();
-        }
-    }
 
     private int warningLevelToInt(WarningLevel level) {
         if (level == null) return 0;

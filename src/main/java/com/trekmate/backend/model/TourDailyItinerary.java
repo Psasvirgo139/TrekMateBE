@@ -1,6 +1,8 @@
 package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.DifficultyLevel;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -8,7 +10,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -72,9 +76,10 @@ public class TourDailyItinerary extends BaseEntity {
     private LocalTime suggestedEndTime;
 
     // JSONB: [{"type":"breakfast","location":"tại trại"}]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "meals_included", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String mealsIncluded = "[]";
+    private List<Map<String, Object>> mealsIncluded = new ArrayList<>();
 
     @Column(name = "meal_notes", columnDefinition = "TEXT")
     private String mealNotes;

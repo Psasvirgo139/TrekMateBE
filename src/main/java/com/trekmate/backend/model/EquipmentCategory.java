@@ -17,9 +17,9 @@ import java.util.UUID;
 public class EquipmentCategory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -42,3 +42,5 @@ public class EquipmentCategory {
     @Builder.Default
     private List<Equipment> equipmentList = new ArrayList<>();
 }
+
+

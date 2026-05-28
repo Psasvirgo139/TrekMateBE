@@ -1,4 +1,4 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,9 +18,9 @@ import java.util.UUID;
 public class Payment {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id", nullable = false)
@@ -61,4 +61,6 @@ public class Payment {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }
+
+
 

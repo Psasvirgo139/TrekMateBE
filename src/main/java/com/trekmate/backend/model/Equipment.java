@@ -1,11 +1,15 @@
 package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.EquipmentCondition;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -18,7 +22,7 @@ import java.math.BigDecimal;
         @Index(name = "idx_equipment_active",   columnList = "is_active, available_stock")
 })
 @EntityListeners(AuditingEntityListener.class)
-public class Equipment extends BaseEntity {
+public class Equipment extends LongBaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
@@ -62,10 +66,11 @@ public class Equipment extends BaseEntity {
     @Column(name = "weight_kg", precision = 5, scale = 2)
     private BigDecimal weightKg;
 
-    // JSONB: {}
+    // JSONB: {key: value}
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "specifications", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String specifications = "{}";
+    private Map<String, Object> specifications = new HashMap<>();
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

@@ -9,11 +9,12 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 @Repository
-public interface ReviewRepository extends JpaRepository<Review, UUID> {
+public interface ReviewRepository extends JpaRepository<Review, Long> {
     Page<Review> findByTourIdAndIsApproved(UUID tourId, Boolean isApproved, Pageable pageable);
     Page<Review> findByUserId(UUID userId, Pageable pageable);
-    Optional<Review> findByBookingId(UUID bookingId);
-    boolean existsByBookingId(UUID bookingId);
+    Optional<Review> findByBookingId(Long bookingId);
+    boolean existsByBookingId(Long bookingId);
     @Query("SELECT AVG(r.overallRating) FROM Review r WHERE r.tour.id = :tourId AND r.isApproved = true")
     Double avgRatingByTour(@Param("tourId") UUID tourId);
 }
+

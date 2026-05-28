@@ -1,9 +1,13 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -19,9 +23,9 @@ import java.util.UUID;
 public class Notification {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -36,10 +40,11 @@ public class Notification {
     @Column(name = "body", columnDefinition = "TEXT")
     private String body;
 
-    // JSONB: {}
+    // JSONB: {"key":"value"}
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "data", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String data = "{}";
+    private Map<String, Object> data = new HashMap<>();
 
     @Column(name = "is_read", nullable = false)
     @Builder.Default
@@ -53,4 +58,6 @@ public class Notification {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }
+
+
 

@@ -5,7 +5,8 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 @Repository
-public interface EquipmentCategoryRepository extends JpaRepository<EquipmentCategory, UUID> {
+public interface EquipmentCategoryRepository extends JpaRepository<EquipmentCategory, Long> {
     Optional<EquipmentCategory> findBySlug(String slug);
     boolean existsBySlug(String slug);
 }
+

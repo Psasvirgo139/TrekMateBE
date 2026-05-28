@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 @Repository
-public interface BookingRepository extends JpaRepository<Booking, UUID> {
+public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByBookingCode(String bookingCode);
     Page<Booking> findByUserId(UUID userId, Pageable pageable);
     Page<Booking> findByDepartureId(UUID departureId, Pageable pageable);
@@ -22,3 +22,4 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     @Query("SELECT COUNT(b) FROM Booking b WHERE b.status = 'COMPLETED'")
     long countCompleted();
 }
+

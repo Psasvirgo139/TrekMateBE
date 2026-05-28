@@ -1,4 +1,4 @@
-﻿package com.trekmate.backend.model;
+package com.trekmate.backend.model;
 
 import com.trekmate.backend.model.enums.AccommodationType;
 import com.trekmate.backend.model.enums.WaypointType;

@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 @Repository
-public interface DepartureWeatherDailyRepository extends JpaRepository<DepartureWeatherDaily, UUID> {
+public interface DepartureWeatherDailyRepository extends JpaRepository<DepartureWeatherDaily, Long> {
     List<DepartureWeatherDaily> findByDepartureIdOrderByDayNumberAsc(UUID departureId);
     Optional<DepartureWeatherDaily> findByDepartureIdAndDayNumber(UUID departureId, Short dayNumber);
 }
+

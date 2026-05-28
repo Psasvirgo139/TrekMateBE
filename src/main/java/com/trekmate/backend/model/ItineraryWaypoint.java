@@ -28,9 +28,9 @@ import java.util.UUID;
 public class ItineraryWaypoint {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "itinerary_id", nullable = false)
@@ -53,3 +53,5 @@ public class ItineraryWaypoint {
     @Column(name = "estimated_arrival")
     private LocalTime estimatedArrival;
 }
+
+

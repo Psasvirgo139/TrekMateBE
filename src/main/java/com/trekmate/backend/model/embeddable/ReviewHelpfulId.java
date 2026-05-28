@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.io.Serializable;
 import java.util.UUID;
+// reviewId is Long (BIGSERIAL FK to reviews); userId remains UUID (FK to users)
 
 @Embeddable
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
@@ -13,7 +14,7 @@ import java.util.UUID;
 public class ReviewHelpfulId implements Serializable {
 
     @Column(name = "review_id")
-    private UUID reviewId;
+    private Long reviewId;
 
     @Column(name = "user_id")
     private UUID userId;

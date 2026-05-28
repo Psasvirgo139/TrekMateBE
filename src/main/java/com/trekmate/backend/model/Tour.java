@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,24 +80,25 @@ public class Tour extends BaseEntity {
     @Column(name = "route_gpx_url", columnDefinition = "TEXT")
     private String routeGpxUrl;
 
-    // JSONB: ["Đỉnh 3147m","Rừng nguyên sinh"]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "highlights", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String highlights = "[]";
+    private List<String> highlights = new ArrayList<>();
 
-    // JSONB: ["HDV chuyên nghiệp","Lều trại"]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "includes", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String includes = "[]";
+    private List<String> includes = new ArrayList<>();
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "excludes", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String excludes = "[]";
+    private List<String> excludes = new ArrayList<>();
 
-    // JSONB: [{"type":"fitness","note":"Leo bộ 8h/ngày"}]
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "requirements", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private String requirements = "[]";
+    private List<String> requirements = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
