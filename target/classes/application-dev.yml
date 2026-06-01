@@ -1,0 +1,20 @@
+# =====================================================
+# Profile: DEV - dùng khi chạy local
+# Kích hoạt: spring.profiles.active=dev
+# =====================================================
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/trekmate
+    username: postgres
+    password: 123456
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+logging:
+  level:
+    com.trekmate: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
