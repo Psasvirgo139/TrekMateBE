@@ -45,7 +45,15 @@ public enum ErrorCode {
 
     // Category
     CATEGORY_NOT_FOUND(4047, "Category not found", HttpStatus.NOT_FOUND),
-    CATEGORY_NAME_ALREADY_EXISTS(4097, "Category name already exists", HttpStatus.CONFLICT);
+    CATEGORY_NAME_ALREADY_EXISTS(4097, "Category name already exists", HttpStatus.CONFLICT),
+
+    // Waypoint
+    WAYPOINT_NOT_FOUND(4048, "Tour waypoint not found", HttpStatus.NOT_FOUND),
+    DUPLICATE_WAYPOINT_ORDER(4098, "Waypoint sequence order already exists in this tour", HttpStatus.CONFLICT),
+
+    // Itinerary
+    ITINERARY_NOT_FOUND(4049, "Tour itinerary not found", HttpStatus.NOT_FOUND),
+    DUPLICATE_ITINERARY_DAY(4099, "Itinerary day number already exists in this tour", HttpStatus.CONFLICT);
 
     private final int code;
     private final String message;
