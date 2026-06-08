@@ -45,7 +45,13 @@ public enum ErrorCode {
 
     // Category
     CATEGORY_NOT_FOUND(4047, "Category not found", HttpStatus.NOT_FOUND),
-    CATEGORY_NAME_ALREADY_EXISTS(4097, "Category name already exists", HttpStatus.CONFLICT);
+    CATEGORY_NAME_ALREADY_EXISTS(4097, "Category name already exists", HttpStatus.CONFLICT),
+
+    // PayOS & Payments
+    INVALID_REQUEST(4002, "Invalid request", HttpStatus.BAD_REQUEST),
+    PAYOS_NOT_CONFIGURED(5001, "PayOS is not configured", HttpStatus.INTERNAL_SERVER_ERROR),
+    PAYOS_LINK_FAILED(5002, "Failed to create PayOS payment link", HttpStatus.INTERNAL_SERVER_ERROR),
+    PAYOS_PAYMENT_PENDING(4005, "PayOS payment is pending processing", HttpStatus.ACCEPTED);
 
     private final int code;
     private final String message;
