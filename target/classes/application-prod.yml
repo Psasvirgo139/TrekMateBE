@@ -1,0 +1,25 @@
+# =====================================================
+# Profile: PROD - dùng khi deploy lên server
+# Kích hoạt: spring.profiles.active=prod
+# Khuyến nghị: set qua biến môi trường OS/Docker
+# =====================================================
+spring:
+  datasource:
+    url: ${DB_URL}           # jdbc:postgresql://<host>:<port>/<dbname>
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 50
+
+  jpa:
+    hibernate:
+      ddl-auto: validate     # KHÔNG tự sửa schema trên prod
+    show-sql: false
+
+logging:
+  level:
+    com.trekmate: INFO
+    org.hibernate.SQL: WARN
+    root: WARN
