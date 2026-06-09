@@ -2,6 +2,7 @@ D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\config\AppConfi
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\config\DataInitializer.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\config\OpenApiConfig.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\controller\HomeController.java
+D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\controller\PublicTourController.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\controller\TourController.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\request\ItineraryWaypointRequest.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\request\TourDailyItineraryRequest.java
@@ -9,6 +10,7 @@ D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\request\Tou
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\request\TourRequest.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\request\TourSearchRequest.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\request\TourWaypointRequest.java
+D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\response\ApiResponse.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\response\DepartureCardResponse.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\response\GuideCardResponse.java
 D:\SU26\TrekMateBE\TrekMateBE\src\main\java\com\trekmate\backend\dto\response\HomeResponse.java
