@@ -38,4 +38,14 @@ public interface TourService {
     TourImageResponse addTourImage(UUID tourId, TourImageRequest request);
     
     void deleteTourImage(UUID tourId, Long imageId);
+
+    // Tour Search/Listing (dev)
+    Page<TourCardResponse> getTours(
+            String search,
+            DifficultyLevel difficulty,
+            TourStatus status,
+            Short minDuration,
+            Short maxDuration,
+            Pageable pageable
+    );
 }

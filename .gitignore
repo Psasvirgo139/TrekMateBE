@@ -141,3 +141,12 @@ hs_err_pid*
 replay_pid*
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij,java
+
+# Maven target directory
+target/
+
+# IDEA files
+.idea/
+
+# VS Code files
+.vscode/
