@@ -60,9 +60,6 @@ public class Payment {
             columnDefinition = "TIMESTAMP")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
 }
 
 
