@@ -50,7 +50,7 @@ public class AdminUserQueryDao {
                        u.last_login_at, u.updated_at,
                        c.full_name, c.avatar_url,
                        g.display_name, g.avatar_url, g.experience_years, g.profile_approved_at,
-                       (c.id IS NOT NULL), (g.id IS NOT NULL)
+                       (c.user_id IS NOT NULL), (g.user_id IS NOT NULL)
                 """ + BASE_FROM + where + " ORDER BY u.updated_at DESC";
 
         Query dataQuery = em.createNativeQuery(select);
@@ -83,7 +83,7 @@ public class AdminUserQueryDao {
                        u.last_login_at, u.updated_at,
                        c.full_name, c.avatar_url,
                        g.display_name, g.avatar_url, g.experience_years, g.profile_approved_at,
-                       (c.id IS NOT NULL), (g.id IS NOT NULL)
+                       (c.user_id IS NOT NULL), (g.user_id IS NOT NULL)
                 """ + BASE_FROM + " WHERE u.id = :id";
 
         Query query = em.createNativeQuery(sql);
@@ -112,8 +112,8 @@ public class AdminUserQueryDao {
         if (role == null || role == UserRoleFilter.ALL) return;
         switch (role) {
             case ADMIN -> where.append(" AND u.is_admin = true ");
-            case GUIDE -> where.append(" AND g.id IS NOT NULL ");
-            case CUSTOMER -> where.append(" AND c.id IS NOT NULL AND u.is_admin = false ");
+            case GUIDE -> where.append(" AND g.user_id IS NOT NULL ");
+            case CUSTOMER -> where.append(" AND c.user_id IS NOT NULL AND u.is_admin = false ");
             default -> { }
         }
     }
@@ -124,12 +124,12 @@ public class AdminUserQueryDao {
             case BANNED -> where.append(" AND u.is_active = false ");
             case PENDING -> where.append("""
                      AND u.is_active = true
-                     AND (u.is_verified = false OR (g.id IS NOT NULL AND g.profile_approved_at IS NULL))
+                     AND (u.is_verified = false OR (g.user_id IS NOT NULL AND g.profile_approved_at IS NULL))
                     """);
             case ACTIVE -> where.append("""
                      AND u.is_active = true
                      AND u.is_verified = true
-                     AND (g.id IS NULL OR g.profile_approved_at IS NOT NULL)
+                     AND (g.user_id IS NULL OR g.profile_approved_at IS NOT NULL)
                     """);
             default -> { }
         }
