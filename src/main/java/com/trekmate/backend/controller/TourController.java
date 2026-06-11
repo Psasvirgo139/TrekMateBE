@@ -27,6 +27,25 @@ public class TourController {
 
     private final TourService tourService;
 
+    @GetMapping
+    @Operation(summary = "Lấy danh sách tour", description = "Trả về danh sách tour có phân trang, hỗ trợ tìm kiếm theo từ khóa và lọc theo độ khó, trạng thái, khoảng thời gian.")
+    public ApiResponse<Page<TourCardResponse>> getTours(
+                    @RequestParam(required = false) String search,
+                    @RequestParam(required = false) DifficultyLevel difficulty,
+                    @RequestParam(required = false) TourStatus status,
+                    @RequestParam(required = false) Short minDuration,
+                    @RequestParam(required = false) Short maxDuration,
+                    Pageable pageable) {
+            log.info("REST request to get tours list with search='{}', difficulty='{}', status='{}'", search,
+                            difficulty, status);
+            Page<TourCardResponse> data = tourService.getTours(search, difficulty, status, minDuration, maxDuration,
+                            pageable);
+            return ApiResponse.<Page<TourCardResponse>>builder()
+                            .code(200) // ← correct method name
+                            .message("Lấy danh sách tour thành công")
+                            .data(data)
+                            .build();
+    }
     // ────────────────────────────────────────────────────────────────────────────
     // Tour CRUD
     // ────────────────────────────────────────────────────────────────────────────

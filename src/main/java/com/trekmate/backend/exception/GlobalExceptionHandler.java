@@ -52,6 +52,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         log.error("Unexpected error: ", ex);
+        try {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            ex.printStackTrace(pw);
+            java.nio.file.Files.writeString(
+                java.nio.file.Paths.get("error_trace.txt"),
+                sw.toString()
+            );
+        } catch (Exception e) {
+            log.error("Failed to write error log file", e);
+        }
 
         ErrorResponse response = ErrorResponse.builder()
                 .code(ErrorCode.INTERNAL_SERVER_ERROR.getCode())

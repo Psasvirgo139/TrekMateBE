@@ -16,7 +16,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/trekmate_db   # <-- tên database
     username: postgres                                   # <-- username PostgreSQL
-    password: password                                   # <-- password PostgreSQL
+    password: 123456                                   # <-- password PostgreSQL
     driver-class-name: org.postgresql.Driver
 
     # Connection Pool (HikariCP - mặc định của Spring Boot)
@@ -67,6 +67,14 @@ springdoc:
 app:
   name: TrekMate
   version: 1.0.0
+  payos:
+    client-id: ${PAYOS_CLIENT_ID:f8ade6f1-11d0-4f19-be61-6d0aef90da55}
+    api-key: ${PAYOS_API_KEY:416d36ad-63bc-4e41-972b-ebb2b651fd21}
+    checksum-key: ${PAYOS_CHECKSUM_KEY:c9e95bc337d249b394a3bbc4cb5baf16772c2a10354bc8935b67adb3172fbded}
+    base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
+    return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/success}
+    cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/cancel}
+
 
 logging:
   level:
