@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -18,13 +19,17 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "customers",
-       indexes = @Index(name = "idx_customers_user_id", columnList = "user_id"))
+@Table(name = "customers")
 @EntityListeners(AuditingEntityListener.class)
-public class Customer extends BaseEntity {
+public class Customer {
 
+    @Id
+    @Column(name = "user_id")
+    private UUID id;
+
+    @MapsId
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(name = "full_name", nullable = false, length = 150)
@@ -65,5 +70,14 @@ public class Customer extends BaseEntity {
     @Column(name = "total_tours_joined", nullable = false)
     @Builder.Default
     private Integer totalToursJoined = 0;
-}
 
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false,
+            columnDefinition = "TIMESTAMP")
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false,
+            columnDefinition = "TIMESTAMP")
+    private LocalDateTime updatedAt;
+}

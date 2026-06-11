@@ -4,6 +4,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
@@ -11,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -19,16 +22,20 @@ import java.util.Map;
 @Builder
 @Entity
 @Table(name = "guides", indexes = {
-        @Index(name = "idx_guides_user_id",    columnList = "user_id"),
         @Index(name = "idx_guides_available",  columnList = "is_available"),
         @Index(name = "idx_guides_rating",     columnList = "avg_rating"),
         @Index(name = "idx_guides_experience", columnList = "experience_years")
 })
 @EntityListeners(AuditingEntityListener.class)
-public class Guide extends BaseEntity {
+public class Guide {
 
+    @Id
+    @Column(name = "user_id")
+    private UUID id;
+
+    @MapsId
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(name = "display_name", nullable = false, length = 150)
@@ -94,5 +101,14 @@ public class Guide extends BaseEntity {
     @OneToMany(mappedBy = "guide", fetch = FetchType.LAZY)
     @Builder.Default
     private List<DepartureGuide> departureGuides = new ArrayList<>();
-}
 
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false,
+            columnDefinition = "TIMESTAMP")
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false,
+            columnDefinition = "TIMESTAMP")
+    private LocalDateTime updatedAt;
+}

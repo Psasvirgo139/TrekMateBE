@@ -43,7 +43,7 @@ public class PublicTourController {
         log.info("REST request to get tours list with search='{}', difficulty='{}', status='{}'", search, difficulty, status);
         Page<TourCardResponse> data = tourService.getTours(search, difficulty, status, minDuration, maxDuration, pageable);
         return ApiResponse.<Page<TourCardResponse>>builder()
-                .status(200)
+                .code(200)
                 .message("Lấy danh sách tour thành công")
                 .data(data)
                 .build();
