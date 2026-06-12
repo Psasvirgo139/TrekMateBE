@@ -56,15 +56,8 @@ public class TourServiceImpl implements TourService {
     @Transactional(readOnly = true)
     public TourDetailResponse getTourByIdOrSlug(String idOrSlug) {
         log.debug("Get tour by ID or Slug: {}", idOrSlug);
-        Tour tour;
-        try {
-            UUID id = UUID.fromString(idOrSlug);
-            tour = tourRepository.findById(id)
-                    .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
-        } catch (IllegalArgumentException e) {
-            tour = tourRepository.findBySlug(idOrSlug)
-                    .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
-        }
+        Tour tour = resolveTour(idOrSlug);
+        loadTourDetailRelations(tour);
         return tourMapper.toTourDetailResponse(tour);
     }
 
@@ -366,5 +359,31 @@ public class TourServiceImpl implements TourService {
             slug = baseSlug + "-" + count;
             count++;
         }
+    }
+
+    private Tour resolveTour(String idOrSlug) {
+        try {
+            UUID id = UUID.fromString(idOrSlug);
+            return tourRepository.findById(id)
+                    .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
+        } catch (IllegalArgumentException e) {
+            return tourRepository.findBySlug(idOrSlug)
+                    .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
+        }
+    }
+
+    private void loadTourDetailRelations(Tour tour) {
+        tour.setImages(imageRepository.findByTourIdOrderBySortOrderAsc(tour.getId()));
+        tour.setWaypoints(waypointRepository.findByTourIdOrderBySequenceOrderAsc(tour.getId()));
+
+        List<TourDailyItinerary> itineraries = itineraryRepository.findByTourIdOrderByDayNumberAsc(tour.getId());
+        for (TourDailyItinerary itinerary : itineraries) {
+            itinerary.setWaypointLinks(loadItineraryWaypointLinks(itinerary.getId()));
+        }
+        tour.setDailyItinerary(itineraries);
+    }
+
+    private List<ItineraryWaypoint> loadItineraryWaypointLinks(UUID itineraryId) {
+        return new ArrayList<>(itineraryWaypointRepository.findByItineraryIdOrderByVisitOrderAsc(itineraryId));
     }
 }

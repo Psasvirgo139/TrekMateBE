@@ -4,6 +4,9 @@ server:
     context-path: /api
 
 spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
   application:
     name: trekmate-backend
 
@@ -31,7 +34,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # create-drop (test) | update (dev) | validate (prod) | none (prod)
+      ddl-auto: create   # create-drop (test) | update (dev) | validate (prod) | none (prod)
     show-sql: true
     properties:
       hibernate:
