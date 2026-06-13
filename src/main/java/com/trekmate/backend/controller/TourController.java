@@ -10,50 +10,83 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springdoc.core.annotations.ParameterObject;
 
 import java.util.UUID;
 
 @RestController
 @Validated
 @Slf4j(topic = "API-TOUR-CONTROLLER")
-@RequestMapping({ "/admin/tours" })
+@RequestMapping("/tours")
 @RequiredArgsConstructor
-@Tag(name = "Tours Management", description = "Quản lý và tra cứu thông tin tour trekking, lộ trình và hành trình")
+@Tag(name = "Tours", description = "Quản lý và tra cứu thông tin tour trekking, lộ trình và hành trình")
 public class TourController {
 
     private final TourService tourService;
 
+    // ────────────────────────────────────────────────────────────────────────────
+    // Listing / Search
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Dành cho USER — chỉ trả tour có trạng thái ACTIVE.
+     * GET /api/tours
+     */
     @GetMapping
-    @Operation(summary = "Lấy danh sách tour", description = "Trả về danh sách tour có phân trang, hỗ trợ tìm kiếm theo từ khóa và lọc theo độ khó, trạng thái, khoảng thời gian.")
-    public ApiResponse<Page<TourCardResponse>> getTours(
+    @Operation(
+            summary = "Lấy danh sách tour (user)",
+            description = "Trả về danh sách tour đang hoạt động (ACTIVE) có phân trang, hỗ trợ tìm kiếm và lọc theo độ khó, khoảng thời gian."
+    )
+    public ApiResponse<Page<TourCardResponse>> getToursForUser(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) DifficultyLevel difficulty,
-            @RequestParam(required = false) TourStatus status,
             @RequestParam(required = false) Short minDuration,
             @RequestParam(required = false) Short maxDuration,
             Pageable pageable) {
-        log.info("REST request to get tours list with search='{}', difficulty='{}', status='{}'", search,
-                difficulty, status);
-        Page<TourCardResponse> data = tourService.getTours(search, difficulty, status, minDuration, maxDuration,
-                pageable);
+        log.info("REST [USER] get tours: search='{}', difficulty='{}'", search, difficulty);
+        Page<TourCardResponse> data = tourService.getTours(
+                search, difficulty, TourStatus.ACTIVE, minDuration, maxDuration, pageable);
         return ApiResponse.<Page<TourCardResponse>>builder()
-                .code(200) // ← correct method name
+                .code(200)
                 .message("Lấy danh sách tour thành công")
                 .data(data)
                 .build();
     }
 
+    /**
+     * Dành cho ADMIN — trả tất cả tour không phân biệt trạng thái.
+     * GET /api/tours/all
+     */
+    @GetMapping("/all")
+    @Operation(
+            summary = "Lấy tất cả tour (admin)",
+            description = "Trả về toàn bộ tour có phân trang, hỗ trợ lọc theo từ khóa, độ khó và trạng thái (DRAFT / ACTIVE / ARCHIVED …)."
+    )
+    public ApiResponse<Page<TourDetailResponse>> getToursForAdmin(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) DifficultyLevel difficulty,
+            @RequestParam(required = false) TourStatus status,
+            Pageable pageable) {
+        log.info("REST [ADMIN] get all tours: search='{}', difficulty='{}', status='{}'", search, difficulty, status);
+        Page<TourDetailResponse> data = tourService.getAllTours(search, difficulty, status, pageable);
+        return ApiResponse.<Page<TourDetailResponse>>builder()
+                .code(200)
+                .message("Lấy danh sách tour thành công")
+                .data(data)
+                .build();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Tour Detail / CRUD
+    // ────────────────────────────────────────────────────────────────────────────
+
     @GetMapping("/{idOrSlug}")
-    @Operation(summary = "Lấy chi tiết tour", description = "Lấy chi tiết tour (kèm theo waypoints, daily itineraries, images) qua UUID hoặc slug")
+    @Operation(summary = "Lấy chi tiết tour", description = "Lấy chi tiết tour (kèm waypoints, daily itineraries, images) qua UUID hoặc slug")
     public ResponseEntity<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
         return ResponseEntity.ok(tourService.getTourByIdOrSlug(idOrSlug));
     }
