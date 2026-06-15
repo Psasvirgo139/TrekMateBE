@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import com.trekmate.backend.model.enums.DepartureStatus;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +13,8 @@ import java.util.UUID;
 public interface DepartureGuideRepository extends JpaRepository<DepartureGuide, DepartureGuideId> {
     List<DepartureGuide> findByDepartureId(UUID departureId);
     List<DepartureGuide> findByGuideId(UUID guideId);
+
+    long countByGuideIdAndDepartureStatus(UUID guideId, DepartureStatus status);
     @Query("SELECT dg FROM DepartureGuide dg JOIN dg.departure td " +
            "WHERE dg.guide.id = :guideId " +
            "AND td.status NOT IN ('CANCELLED','COMPLETED') " +
