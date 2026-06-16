@@ -11,8 +11,9 @@ public class FrontendController {
 
     @GetMapping({
             "/",
-            "/{path:[^\\.]*}",
-            "/**/{path:[^\\.]*}"
+            "/{path1:[^\\.]*}",
+            "/{path1:[^\\.]*}/{path2:[^\\.]*}",
+            "/{path1:[^\\.]*}/{path2:[^\\.]*}/{path3:[^\\.]*}"
     })
     public String forwardToIndex() {
         return "forward:/index.html";
