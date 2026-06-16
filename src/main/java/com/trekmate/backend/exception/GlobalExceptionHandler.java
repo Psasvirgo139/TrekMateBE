@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,7 +20,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ErrorResponse> handleAppException(AppException ex) {
         ErrorCode errorCode = ex.getErrorCode();
-        log.error("AppException: code={}, message={}", errorCode.getCode(), ex.getMessage());
+        log.warn("AppException: code={}, message={}", errorCode.getCode(), ex.getMessage());
 
         ErrorResponse response = ErrorResponse.builder()
                 .code(errorCode.getCode())
@@ -49,20 +50,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    /**
+     * Bắt các request tới static resource không tồn tại (favicon, manifest...).
+     * Trả về 404 im lặng, không log stack trace.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException ex) {
+        log.debug("Static resource not found: {}", ex.getResourcePath());
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Fallback cho các lỗi bất ngờ khác — log ngắn gọn, không ghi file.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-        log.error("Unexpected error: ", ex);
-        try {
-            java.io.StringWriter sw = new java.io.StringWriter();
-            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
-            ex.printStackTrace(pw);
-            java.nio.file.Files.writeString(
-                java.nio.file.Paths.get("error_trace.txt"),
-                sw.toString()
-            );
-        } catch (Exception e) {
-            log.error("Failed to write error log file", e);
-        }
+        log.error("Unexpected error [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage());
 
         ErrorResponse response = ErrorResponse.builder()
                 .code(ErrorCode.INTERNAL_SERVER_ERROR.getCode())
