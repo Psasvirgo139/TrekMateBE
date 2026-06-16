@@ -75,7 +75,6 @@ app:
     return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/success}
     cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/cancel}
 
-
 logging:
   level:
     com.trekmate: DEBUG

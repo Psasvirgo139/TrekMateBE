@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @Validated
 @Slf4j(topic = "API-TOUR-CONTROLLER")
-@RequestMapping("/tours")
+@RequestMapping({ "/admin/tours", "/tours" })
 @RequiredArgsConstructor
 @Tag(name = "Tours", description = "Quản lý và tra cứu thông tin tour trekking, lộ trình và hành trình")
 public class TourController {
@@ -88,7 +88,9 @@ public class TourController {
     @GetMapping("/{idOrSlug}")
     @Operation(summary = "Lấy chi tiết tour", description = "Lấy chi tiết tour (kèm waypoints, daily itineraries, images) qua UUID hoặc slug")
     public ResponseEntity<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
-        return ResponseEntity.ok(tourService.getTourByIdOrSlug(idOrSlug));
+        log.info("REST request to get tour detail: {}", idOrSlug);
+        TourDetailResponse dto = tourService.getTourByIdOrSlug(idOrSlug);
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping

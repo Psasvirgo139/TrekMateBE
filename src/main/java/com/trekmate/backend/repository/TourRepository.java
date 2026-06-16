@@ -44,4 +44,3 @@ public interface TourRepository extends JpaRepository<Tour, UUID> {
             Pageable pageable
     );
 }
-
