@@ -7,6 +7,10 @@ spring:
   application:
     name: trekmate-backend
 
+  mvc:
+    pathmatch:
+      matching-strategy: path_pattern_parser
+
   profiles:
     active: dev   # Đổi thành "prod" khi deploy
 
@@ -74,7 +78,6 @@ app:
     base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
     return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/success}
     cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/cancel}
-
 
 logging:
   level:
