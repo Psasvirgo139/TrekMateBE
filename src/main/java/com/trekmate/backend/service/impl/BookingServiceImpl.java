@@ -1,15 +1,20 @@
 package com.trekmate.backend.service.impl;
 
 import com.trekmate.backend.dto.request.CancelBookingRequest;
+import com.trekmate.backend.dto.request.CreateBookingRequest;
 import com.trekmate.backend.dto.response.BookingDetailResponse;
 import com.trekmate.backend.dto.response.BookingHistoryResponse;
 import com.trekmate.backend.exception.AppException;
 import com.trekmate.backend.exception.ErrorCode;
 import com.trekmate.backend.model.Booking;
+import com.trekmate.backend.model.Equipment;
+import com.trekmate.backend.model.EquipmentRental;
 import com.trekmate.backend.model.TourDeparture;
 import com.trekmate.backend.model.User;
 import com.trekmate.backend.model.enums.BookingStatus;
 import com.trekmate.backend.repository.BookingRepository;
+import com.trekmate.backend.repository.EquipmentRentalRepository;
+import com.trekmate.backend.repository.EquipmentRepository;
 import com.trekmate.backend.repository.TourDepartureRepository;
 import com.trekmate.backend.repository.UserRepository;
 import com.trekmate.backend.service.BookingService;
@@ -20,8 +25,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -32,6 +39,8 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final TourDepartureRepository departureRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final EquipmentRentalRepository equipmentRentalRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -108,6 +117,114 @@ public class BookingServiceImpl implements BookingService {
                 booking.getBookingCode(), user.getEmail(), booking.getNumParticipants());
 
         return mapToDetailResponse(booking);
+    }
+
+    @Override
+    @Transactional
+    public BookingDetailResponse createBooking(String email, CreateBookingRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        TourDeparture departure = departureRepository.findById(request.getDepartureId())
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Departure not found"));
+
+        // Kiểm tra thời hạn đặt tour
+        LocalDate now = LocalDate.now();
+        LocalDate cutoff = departure.getCutoffDate();
+        if (cutoff == null) {
+            cutoff = departure.getDepartureDate().minusDays(2);
+        }
+        if (now.isAfter(cutoff) || now.isAfter(departure.getDepartureDate())) {
+            throw new AppException(ErrorCode.DEPARTURE_PAST_CUTOFF);
+        }
+
+        // Kiểm tra số chỗ trống
+        int requestedSlots = request.getNumParticipants();
+        int currentBooked = departure.getBookedSlots() != null ? departure.getBookedSlots() : 0;
+        int maxSlots = departure.getMaxGroupSize() != null ? departure.getMaxGroupSize() : 0;
+        if (currentBooked + requestedSlots > maxSlots) {
+            throw new AppException(ErrorCode.TOUR_FULLY_BOOKED);
+        }
+
+        // Khởi tạo các giá trị thanh toán
+        BigDecimal priceSnapshot = departure.getPricePerPerson();
+        BigDecimal subtotalTour = priceSnapshot.multiply(BigDecimal.valueOf(requestedSlots));
+        BigDecimal subtotalEquipment = BigDecimal.ZERO;
+        List<EquipmentRental> rentals = new ArrayList<>();
+
+        // Xử lý thuê thiết bị
+        if (request.getRentals() != null && !request.getRentals().isEmpty()) {
+            short rentalDays = departure.getTour().getDurationDays() != null ? departure.getTour().getDurationDays() : 1;
+            for (var rentalReq : request.getRentals()) {
+                Equipment eq = equipmentRepository.findById(rentalReq.getEquipmentId())
+                        .orElseThrow(() -> new AppException(ErrorCode.EQUIPMENT_NOT_FOUND));
+
+                if (eq.getIsActive() == null || !eq.getIsActive() || eq.getAvailableStock() < rentalReq.getQuantity()) {
+                    throw new AppException(ErrorCode.EQUIPMENT_OUT_OF_STOCK, "Equipment " + eq.getName() + " is out of stock or inactive");
+                }
+
+                // Cập nhật tồn kho khả dụng của thiết bị
+                eq.setAvailableStock((short) (eq.getAvailableStock() - rentalReq.getQuantity()));
+                equipmentRepository.save(eq);
+
+                BigDecimal itemPrice = eq.getPricePerDay();
+                BigDecimal itemSubtotal = itemPrice.multiply(BigDecimal.valueOf(rentalDays))
+                        .multiply(BigDecimal.valueOf(rentalReq.getQuantity()));
+
+                EquipmentRental rental = EquipmentRental.builder()
+                        .equipment(eq)
+                        .quantity(rentalReq.getQuantity())
+                        .rentalDays(rentalDays)
+                        .pricePerDay(itemPrice)
+                        .subtotal(itemSubtotal)
+                        .createdAt(LocalDateTime.now())
+                        .damageFee(BigDecimal.ZERO)
+                        .build();
+
+                rentals.add(rental);
+                subtotalEquipment = subtotalEquipment.add(itemSubtotal);
+            }
+        }
+
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal totalPrice = subtotalTour.add(subtotalEquipment).subtract(discountAmount);
+
+        // Sinh mã booking duy nhất (độ dài tối đa 20 ký tự)
+        String bookingCode = "BK" + (System.currentTimeMillis() % 1000000L) + java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+
+        Booking booking = Booking.builder()
+                .bookingCode(bookingCode)
+                .user(user)
+                .departure(departure)
+                .numParticipants((short) requestedSlots)
+                .participantsInfo(request.getParticipantsInfo())
+                .priceSnapshot(priceSnapshot)
+                .subtotalTour(subtotalTour)
+                .subtotalEquipment(subtotalEquipment)
+                .discountAmount(discountAmount)
+                .totalPrice(totalPrice)
+                .currency("VND")
+                .isJoinTour(request.getIsJoinTour())
+                .specialRequests(request.getSpecialRequests())
+                .status(BookingStatus.PENDING)
+                .rentals(new ArrayList<>())
+                .payments(new ArrayList<>())
+                .build();
+
+        // Gán liên kết 2 chiều
+        for (EquipmentRental r : rentals) {
+            r.setBooking(booking);
+            booking.getRentals().add(r);
+        }
+
+        // Cập nhật bookedSlots của TourDeparture
+        departure.setBookedSlots((short) (currentBooked + requestedSlots));
+        departureRepository.save(departure);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        log.info("[Booking Created] BookingCode: {}, User: {}, TotalPrice: {}", bookingCode, email, totalPrice);
+
+        return mapToDetailResponse(savedBooking);
     }
 
     private BookingHistoryResponse mapToHistoryResponse(Booking b) {
