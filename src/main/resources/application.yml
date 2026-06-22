@@ -9,6 +9,9 @@ spring:
 
   profiles:
     active: dev   # Đổi thành "prod" khi deploy
+    group:
+      dev:
+        - dev-local
 
   # =============================================
   # POSTGRESQL - Thay đổi các giá trị bên dưới
@@ -67,6 +70,18 @@ springdoc:
 app:
   name: TrekMate
   version: 1.0.0
+  jwt:
+    secret: ${JWT_SECRET:trekmate-dev-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+    expiration-ms: 86400000
+    remember-me-expiration-ms: 604800000
+  mail:
+    from: ${MAIL_FROM:TrekMate <duynhatvo05@gmail.com>}
+    otp-expiration-minutes: 30
+    otp-cooldown-seconds: 60
+    otp-max-attempts: 5
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:328260392043-l423v02sl76hbr2kc7vv6s8448m9pv35.apps.googleusercontent.com}
   payos:
     client-id: ${PAYOS_CLIENT_ID:f8ade6f1-11d0-4f19-be61-6d0aef90da55}
     api-key: ${PAYOS_API_KEY:416d36ad-63bc-4e41-972b-ebb2b651fd21}

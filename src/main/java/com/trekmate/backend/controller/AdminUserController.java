@@ -21,7 +21,7 @@ import java.util.UUID;
 
 /**
  * User management — soft disable via is_active, no hard delete.
- * TODO: require JWT + ADMIN role when auth is integrated.
+ * Requires JWT + ADMIN role.
  */
 @RestController
 @RequestMapping("/admin/users")

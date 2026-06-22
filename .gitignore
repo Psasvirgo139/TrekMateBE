@@ -150,3 +150,10 @@ target/
 
 # VS Code files
 .vscode/
+
+# Local dev secrets (Gmail App Password, etc.)
+src/main/resources/application-dev-local.yml
+application-dev-local.yml
+.env
+# macOS
+.DS_Store

@@ -1,6 +1,7 @@
 # =====================================================
 # Profile: DEV - dùng khi chạy local
 # Kích hoạt: spring.profiles.active=dev
+# Mail password: application-dev-local.yml (profile dev-local)
 # =====================================================
 spring:
   datasource:
@@ -12,6 +13,22 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:duynhatvo05@gmail.com}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  mail:
+    from: ${MAIL_FROM:TrekMate <duynhatvo05@gmail.com>}
 
 logging:
   level:

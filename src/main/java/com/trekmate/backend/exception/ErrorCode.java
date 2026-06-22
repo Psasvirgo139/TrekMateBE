@@ -59,7 +59,20 @@ public enum ErrorCode {
 
     // Itinerary
     ITINERARY_NOT_FOUND(4049, "Tour itinerary not found", HttpStatus.NOT_FOUND),
-    DUPLICATE_ITINERARY_DAY(4099, "Itinerary day number already exists in this tour", HttpStatus.CONFLICT);
+    DUPLICATE_ITINERARY_DAY(4099, "Itinerary day number already exists in this tour", HttpStatus.CONFLICT),
+
+    // Auth
+    INVALID_CREDENTIALS(4010, "Invalid email or password", HttpStatus.UNAUTHORIZED),
+    ACCOUNT_SUSPENDED(4011, "Account has been suspended", HttpStatus.FORBIDDEN),
+    EMAIL_NOT_VERIFIED(4012, "Please verify your email before signing in", HttpStatus.FORBIDDEN),
+    OTP_INVALID(4013, "Invalid verification code", HttpStatus.BAD_REQUEST),
+    OTP_EXPIRED(4014, "Verification code has expired", HttpStatus.BAD_REQUEST),
+    OTP_NOT_FOUND(4015, "No pending registration found for this email", HttpStatus.NOT_FOUND),
+    OTP_MAX_ATTEMPTS(4016, "Too many failed attempts. Please request a new code", HttpStatus.BAD_REQUEST),
+    OTP_COOLDOWN(4017, "Please wait before requesting another code", HttpStatus.TOO_MANY_REQUESTS),
+    EMAIL_SEND_FAILED(5003, "Failed to send verification email", HttpStatus.INTERNAL_SERVER_ERROR),
+    GOOGLE_AUTH_FAILED(4018, "Google sign-in failed", HttpStatus.UNAUTHORIZED),
+    PASSWORD_RESET_NOT_FOUND(4019, "No password reset request found for this email", HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;
