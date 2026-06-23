@@ -1,6 +1,7 @@
 package com.trekmate.backend.controller;
 
 import com.trekmate.backend.dto.request.CancelBookingRequest;
+import com.trekmate.backend.dto.request.CreateBookingRequest;
 import com.trekmate.backend.dto.response.ApiResponse;
 import com.trekmate.backend.dto.response.BookingDetailResponse;
 import com.trekmate.backend.dto.response.BookingHistoryResponse;
@@ -90,6 +91,22 @@ public class BookingController {
         return ApiResponse.<BookingDetailResponse>builder()
                 .code(200)
                 .message("Hủy đặt tour thành công")
+                .data(data)
+                .build();
+    }
+
+    @PostMapping
+    @Operation(summary = "Tạo mới đơn đặt tour", description = "Tạo một đơn đặt tour mới ở trạng thái PENDING. Sau đó người dùng cần gọi API thanh toán.")
+    public ApiResponse<BookingDetailResponse> createBooking(
+            @Valid @RequestBody CreateBookingRequest request,
+            @Parameter(hidden = true) Authentication authentication,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String email = resolveEmail(authentication, authHeader);
+        log.info("REST request to create booking by user: {}", email);
+        BookingDetailResponse data = bookingService.createBooking(email, request);
+        return ApiResponse.<BookingDetailResponse>builder()
+                .code(201)
+                .message("Tạo đơn đặt tour thành công")
                 .data(data)
                 .build();
     }

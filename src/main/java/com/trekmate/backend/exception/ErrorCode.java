@@ -34,6 +34,11 @@ public enum ErrorCode {
     BOOKING_NOT_FOUND(4044, "Booking not found", HttpStatus.NOT_FOUND),
     BOOKING_ALREADY_EXISTS(4094, "You have already booked this tour", HttpStatus.CONFLICT),
     BOOKING_CANNOT_BE_CANCELLED(4023, "Booking cannot be cancelled in current status", HttpStatus.BAD_REQUEST),
+    DEPARTURE_PAST_CUTOFF(4025, "The cutoff date or departure date has passed", HttpStatus.BAD_REQUEST),
+
+    // Equipment
+    EQUIPMENT_NOT_FOUND(4050, "Equipment not found", HttpStatus.NOT_FOUND),
+    EQUIPMENT_OUT_OF_STOCK(4024, "Equipment is out of stock or inactive", HttpStatus.BAD_REQUEST),
 
     // Review
     REVIEW_NOT_FOUND(4045, "Review not found", HttpStatus.NOT_FOUND),

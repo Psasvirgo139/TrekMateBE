@@ -42,6 +42,7 @@ public class DataInitializer implements CommandLineRunner {
     private final BookingRepository           bookingRepository;
     private final ReviewRepository            reviewRepository;
     private final EquipmentCategoryRepository equipmentCategoryRepository;
+    private final EquipmentRepository         equipmentRepository;
     private final PasswordEncoder             passwordEncoder;
 
     // ─── Wrapper giữ các entity đã seed để truyền giữa các bước ───────────────
@@ -70,26 +71,26 @@ public class DataInitializer implements CommandLineRunner {
 
         seedFansipanWaypointsAndItinerary(tours.fansipan());
 
-        TourDeparture dep1  = seedDeparture(tours.fansipan(), "2025-06-02", "2025-06-04", "2025-05-30",
+        TourDeparture dep1  = seedDeparture(tours.fansipan(), LocalDate.now().plusDays(10).toString(), LocalDate.now().plusDays(12).toString(), LocalDate.now().plusDays(8).toString(),
                 "2800000", (short) 12, (short) 4, true,
                 "Cổng trời Trạm Tôn, Sa Pa lúc 6:00",
                 "Nắng đẹp, tầm nhìn xa", "sunny", (short) 14, (short) 22, DepartureStatus.OPEN,
                 users.son());
 
-        TourDeparture dep10 = seedDeparture(tours.fansipan(), "2025-04-10", "2025-04-12", "2025-04-08",
+        TourDeparture dep10 = seedDeparture(tours.fansipan(), LocalDate.now().minusDays(10).toString(), LocalDate.now().minusDays(8).toString(), LocalDate.now().minusDays(12).toString(),
                 "2600000", (short) 10, (short) 10, false,
                 "Cổng trời Trạm Tôn, Sa Pa lúc 6:00",
                 "Nắng đẹp suốt hành trình", "sunny", (short) 12, (short) 20, DepartureStatus.COMPLETED,
                 users.son());
         updateCompletedDeparture(dep10);
 
-        TourDeparture dep5 = seedDeparture(tours.taNang(), "2025-06-14", "2025-06-17", "2025-06-12",
+        TourDeparture dep5 = seedDeparture(tours.taNang(), LocalDate.now().plusDays(15).toString(), LocalDate.now().plusDays(18).toString(), LocalDate.now().plusDays(13).toString(),
                 "1950000", (short) 15, (short) 7, false,
                 "Sân UBND xã Tà Năng lúc 7:00",
                 "Thời tiết lý tưởng trekking", "sunny", (short) 18, (short) 28, DepartureStatus.OPEN,
                 users.mai());
 
-        TourDeparture dep6 = seedDeparture(tours.mapiLeng(), "2025-06-21", "2025-06-22", "2025-06-19",
+        TourDeparture dep6 = seedDeparture(tours.mapiLeng(), LocalDate.now().plusDays(20).toString(), LocalDate.now().plusDays(21).toString(), LocalDate.now().plusDays(18).toString(),
                 "1500000", (short) 8, (short) 5, true,
                 "Cột cờ Lũng Cú, Hà Giang lúc 6:30",
                 "Mây mù sáng sớm, quang sau", "cloudy", (short) 17, (short) 25, DepartureStatus.OPEN,
@@ -117,11 +118,25 @@ public class DataInitializer implements CommandLineRunner {
             {"Đèn & Điện",        "lighting",          "torch",    "7"},
         };
         for (String[] c : data) {
-            equipmentCategoryRepository.save(EquipmentCategory.builder()
+            EquipmentCategory cat = equipmentCategoryRepository.save(EquipmentCategory.builder()
                     .name(c[0]).slug(c[1]).icon(c[2])
                     .sortOrder(Short.parseShort(c[3])).build());
+
+            equipmentRepository.save(Equipment.builder()
+                    .category(cat)
+                    .name("Trang thiết bị " + c[0] + " cao cấp")
+                    .description("Mô tả cho trang thiết bị " + c[0])
+                    .brand("Naturehike")
+                    .model("NH20ZP015")
+                    .pricePerDay(new BigDecimal("50000"))
+                    .depositAmount(new BigDecimal("200000"))
+                    .totalStock((short) 50)
+                    .availableStock((short) 50)
+                    .condition(EquipmentCondition.GOOD)
+                    .isActive(true)
+                    .build());
         }
-        log.info("[Seed] {} equipment categories", data.length);
+        log.info("[Seed] {} equipment categories and sample equipments created", data.length);
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -430,7 +445,7 @@ public class DataInitializer implements CommandLineRunner {
 
         weatherDailyRepository.save(DepartureWeatherDaily.builder()
                 .departure(dep).dayNumber((short) 1)
-                .forecastDate(LocalDate.parse("2025-06-02")).itinerary(it1)
+                .forecastDate(dep.getDepartureDate()).itinerary(it1)
                 .locationLabel("Trạm Tôn (1900m) → Bãi cắm trại (2800m)").elevationM(2200)
                 .weatherSummary("Nắng sáng sớm, mây tích chiều tối").weatherIcon("partly-cloudy")
                 .tempMinC((short) 14).tempMaxC((short) 22)
@@ -442,7 +457,7 @@ public class DataInitializer implements CommandLineRunner {
 
         weatherDailyRepository.save(DepartureWeatherDaily.builder()
                 .departure(dep).dayNumber((short) 2)
-                .forecastDate(LocalDate.parse("2025-06-03")).itinerary(it2)
+                .forecastDate(dep.getDepartureDate().plusDays(1)).itinerary(it2)
                 .locationLabel("Bãi cắm trại (2800m) → Đỉnh Fansipan (3147m)").elevationM(3147)
                 .weatherSummary("Sáng sớm sương mù dày, quang dần sau 8h. Gió mạnh trên đỉnh.").weatherIcon("foggy")
                 .tempMinC((short) 8).tempMaxC((short) 15)
@@ -455,7 +470,7 @@ public class DataInitializer implements CommandLineRunner {
 
         weatherDailyRepository.save(DepartureWeatherDaily.builder()
                 .departure(dep).dayNumber((short) 3)
-                .forecastDate(LocalDate.parse("2025-06-04")).itinerary(it3)
+                .forecastDate(dep.getDepartureDate().plusDays(2)).itinerary(it3)
                 .locationLabel("Bãi cắm trại (2800m) → Trạm Tôn (1900m)").elevationM(1900)
                 .weatherSummary("Nắng đẹp suốt ngày, xuống núi thuận lợi").weatherIcon("sunny")
                 .tempMinC((short) 12).tempMaxC((short) 20)
