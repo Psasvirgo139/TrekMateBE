@@ -52,6 +52,9 @@ public class User {
     @Column(name = "last_login_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "google_id", unique = true, length = 64)
+    private String googleId;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false,
             columnDefinition = "TIMESTAMP")

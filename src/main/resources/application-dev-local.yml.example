@@ -1,0 +1,9 @@
+# Copy to application-dev-local.yml (gitignored)
+#
+# spring:
+#   mail:
+#     password: your-gmail-app-password
+#
+# app:
+#   google:
+#     client-id: your-google-oauth-client-id.apps.googleusercontent.com
