@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
 
@@ -7,26 +7,29 @@ spring:
   application:
     name: trekmate-backend
 
+<<<<<<< Updated upstream
   profiles:
     active: dev   # Đổi thành "prod" khi deploy
     group:
       dev:
         - dev-local
 
+=======
+>>>>>>> Stashed changes
   # =============================================
-  # POSTGRESQL - Thay đổi các giá trị bên dưới
+  # POSTGRESQL
   # =============================================
   datasource:
-    url: jdbc:postgresql://localhost:5432/trekmate_db   # <-- tên database
-    username: postgres                                   # <-- username PostgreSQL
-    password: 123456                                   # <-- password PostgreSQL
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/trekmate}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
 
-    # Connection Pool (HikariCP - mặc định của Spring Boot)
+    # Connection Pool (HikariCP)
     hikari:
       pool-name: TrekMateHikariPool
-      minimum-idle: 5
-      maximum-pool-size: 20
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
       idle-timeout: 300000       # 5 phút
       connection-timeout: 20000  # 20 giây
       max-lifetime: 1200000      # 20 phút
@@ -34,8 +37,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # create-drop (test) | update (dev) | validate (prod) | none (prod)
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO:update}   # update (dev) | validate (prod) | none
+    show-sql: ${JPA_SHOW_SQL:true}
     properties:
       hibernate:
         format_sql: true
@@ -44,10 +47,8 @@ spring:
           batch_size: 20
         order_inserts: true
         order_updates: true
-        # Tắt kiểm tra column definition khi ddl-auto=update để tránh lỗi columnDefinition khác nhau
         globally_quoted_identifiers: false
     open-in-view: false
-    # Không inject EntityManager vào view layer — quan trọng để tránh LazyInitializationException
     defer-datasource-initialization: false
 
   jackson:
@@ -92,7 +93,8 @@ app:
 
 logging:
   level:
-    com.trekmate: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # log giá trị tham số SQL
+    com.trekmate: ${LOG_LEVEL_APP:DEBUG}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:TRACE}
     com.zaxxer.hikari: INFO
+    root: ${LOG_LEVEL_ROOT:INFO}
