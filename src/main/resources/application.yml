@@ -7,15 +7,11 @@ spring:
   application:
     name: trekmate-backend
 
-<<<<<<< Updated upstream
   profiles:
     active: dev   # Đổi thành "prod" khi deploy
     group:
       dev:
         - dev-local
-
-=======
->>>>>>> Stashed changes
   # =============================================
   # POSTGRESQL
   # =============================================
