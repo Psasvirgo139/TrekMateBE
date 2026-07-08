@@ -122,6 +122,51 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public BookingDetailResponse createBooking(String email, CreateBookingRequest request) {
+        // Validate participants details (Ngày sinh không ở tương lai, Số điện thoại phải đúng 10 chữ số)
+        if (request.getParticipantsInfo() != null) {
+            LocalDate today = LocalDate.now();
+            for (int i = 0; i < request.getParticipantsInfo().size(); i++) {
+                java.util.Map<String, Object> p = request.getParticipantsInfo().get(i);
+                
+                // 1. Validate Date of Birth
+                Object dobObj = p.get("dob");
+                if (dobObj == null || dobObj.toString().trim().isEmpty()) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST, "Ngày sinh của hành khách #" + (i + 1) + " là bắt buộc");
+                }
+                try {
+                    LocalDate dob = LocalDate.parse(dobObj.toString().trim());
+                    if (dob.isAfter(today)) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST, "Ngày sinh của hành khách #" + (i + 1) + " không thể ở tương lai");
+                    }
+                } catch (Exception ex) {
+                    if (ex instanceof AppException) {
+                        throw (AppException) ex;
+                    }
+                    throw new AppException(ErrorCode.INVALID_REQUEST, "Định dạng ngày sinh của hành khách #" + (i + 1) + " không hợp lệ");
+                }
+
+                // 2. Validate Phone
+                Object phoneObj = p.get("phone");
+                if (phoneObj == null || phoneObj.toString().trim().isEmpty()) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST, "Số điện thoại của hành khách #" + (i + 1) + " là bắt buộc");
+                }
+                String phone = phoneObj.toString().trim();
+                if (phone.length() != 10 || !phone.matches("\\d{10}")) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST, "Số điện thoại của hành khách #" + (i + 1) + " phải có đúng 10 chữ số");
+                }
+
+                // 3. Validate Emergency Contact (phone number only)
+                Object emergencyObj = p.get("emergency_contact");
+                if (emergencyObj == null || emergencyObj.toString().trim().isEmpty()) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST, "Liên hệ khẩn cấp của hành khách #" + (i + 1) + " là bắt buộc");
+                }
+                String emergency = emergencyObj.toString().trim();
+                if (emergency.length() != 10 || !emergency.matches("\\d{10}")) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST, "Liên hệ khẩn cấp của hành khách #" + (i + 1) + " phải là số điện thoại 10 chữ số");
+                }
+            }
+        }
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 

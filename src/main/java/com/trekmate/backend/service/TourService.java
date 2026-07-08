@@ -7,6 +7,7 @@ import com.trekmate.backend.model.enums.TourStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface TourService {
@@ -48,4 +49,6 @@ public interface TourService {
             Short maxDuration,
             Pageable pageable
     );
+
+    List<DepartureCardResponse> getUpcomingDepartures(String idOrSlug);
 }

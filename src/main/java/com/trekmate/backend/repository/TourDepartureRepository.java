@@ -27,4 +27,13 @@ public interface TourDepartureRepository extends JpaRepository<TourDeparture, UU
 
     @Query("SELECT COUNT(td) FROM TourDeparture td WHERE td.status IN ('OPEN','SCHEDULED') AND td.departureDate >= CURRENT_DATE")
     long countUpcoming();
+
+    @Query("SELECT td FROM TourDeparture td WHERE td.tour.id = :tourId " +
+           "AND td.status IN :statuses " +
+           "AND td.departureDate >= :date " +
+           "ORDER BY td.departureDate ASC")
+    List<TourDeparture> findUpcomingDepartures(
+            @Param("tourId") UUID tourId,
+            @Param("statuses") List<DepartureStatus> statuses,
+            @Param("date") LocalDate date);
 }

@@ -43,6 +43,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ReviewRepository            reviewRepository;
     private final EquipmentCategoryRepository equipmentCategoryRepository;
     private final EquipmentRepository         equipmentRepository;
+    private final TourImageRepository         tourImageRepository;
     private final PasswordEncoder             passwordEncoder;
 
     // ─── Wrapper giữ các entity đã seed để truyền giữa các bước ───────────────
@@ -100,7 +101,53 @@ public class DataInitializer implements CommandLineRunner {
 
         seedBookingsAndReviews(users, tours.fansipan(), dep10, dep5, dep6);
 
+        seedTourImages(tours.fansipan(), tours.taNang(), tours.mapiLeng(), users.admin().getId());
+
         log.info("[DataInitializer] Seed hoàn tất.");
+    }
+
+    private void seedTourImages(Tour fansipan, Tour taNang, Tour mapiLeng, java.util.UUID adminId) {
+        tourImageRepository.save(TourImage.builder()
+                .tour(fansipan)
+                .imageUrl("https://images.unsplash.com/photo-1558005530-a79588561a7a?auto=format&fit=crop&w=800&q=80")
+                .caption("Bình minh trên đỉnh Fansipan")
+                .altText("Fansipan summit sunrise")
+                .isCover(true)
+                .sortOrder((short) 1)
+                .uploadedBy(adminId)
+                .build());
+
+        tourImageRepository.save(TourImage.builder()
+                .tour(fansipan)
+                .imageUrl("https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?auto=format&fit=crop&w=800&q=80")
+                .caption("Rừng nguyên sinh Hoàng Liên Sơn")
+                .altText("Hoang Lien Son forest")
+                .isCover(false)
+                .sortOrder((short) 2)
+                .uploadedBy(adminId)
+                .build());
+
+        tourImageRepository.save(TourImage.builder()
+                .tour(taNang)
+                .imageUrl("https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&w=800&q=80")
+                .caption("Thảo nguyên Tà Năng Phan Dũng")
+                .altText("Ta Nang Phan Dung grasslands")
+                .isCover(true)
+                .sortOrder((short) 1)
+                .uploadedBy(adminId)
+                .build());
+
+        tourImageRepository.save(TourImage.builder()
+                .tour(mapiLeng)
+                .imageUrl("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80")
+                .caption("Hùng vĩ Mã Pí Lèng Hà Giang")
+                .altText("Ma Pi Leng pass")
+                .isCover(true)
+                .sortOrder((short) 1)
+                .uploadedBy(adminId)
+                .build());
+
+        log.info("[Seed] Tour images created.");
     }
 
     // ────────────────────────────────────────────────────────────────────────────
