@@ -340,4 +340,46 @@ public class BookingServiceImpl implements BookingService {
                 .payments(payments)
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void expirePendingBookings(int expirationMinutes) {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(expirationMinutes);
+        List<Booking> pendingBookings = bookingRepository.findByStatusAndCreatedAtBefore(
+                com.trekmate.backend.model.enums.BookingStatus.PENDING, cutoff);
+
+        if (pendingBookings.isEmpty()) {
+            return;
+        }
+
+        log.info("Found {} pending bookings to expire", pendingBookings.size());
+        for (Booking booking : pendingBookings) {
+            try {
+                log.info("Expiring booking ID: {}, Code: {}", booking.getId(), booking.getBookingCode());
+
+                // 1. Cập nhật trạng thái booking thành CANCELLED
+                booking.setStatus(com.trekmate.backend.model.enums.BookingStatus.CANCELLED);
+                booking.setCancellationReason("Hết hạn thanh toán (Auto-expired)");
+                booking.setCancelledAt(LocalDateTime.now());
+
+                // 2. Hoàn trả slots cho TourDeparture
+                TourDeparture departure = booking.getDeparture();
+                short restoredSlots = (short) (departure.getBookedSlots() - booking.getNumParticipants());
+                departure.setBookedSlots(restoredSlots >= 0 ? restoredSlots : 0);
+                departureRepository.save(departure);
+
+                // 3. Hoàn trả tồn kho đồ thuê
+                List<EquipmentRental> rentals = equipmentRentalRepository.findByBookingId(booking.getId());
+                for (EquipmentRental rental : rentals) {
+                    Equipment eq = rental.getEquipment();
+                    eq.setAvailableStock((short) (eq.getAvailableStock() + rental.getQuantity()));
+                    equipmentRepository.save(eq);
+                }
+
+                bookingRepository.save(booking);
+            } catch (Exception e) {
+                log.error("Failed to expire booking ID: {}", booking.getId(), e);
+            }
+        }
+    }
 }
