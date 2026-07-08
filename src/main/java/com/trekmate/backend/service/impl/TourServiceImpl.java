@@ -326,6 +326,12 @@ public class TourServiceImpl implements TourService {
         BigDecimal priceFrom = departureRepository.findMinPriceByTourId(t.getId()).orElse(null);
         long upcoming = departureRepository.countUpcomingByTourId(t.getId());
 
+        // Dùng query trực tiếp để tránh LazyInitializationException trên LAZY images
+        List<String> coverUrls = imageRepository.findCoverUrlsByTourId(t.getId());
+        String coverUrl = coverUrls.isEmpty()
+                ? imageRepository.findFirstImageUrlByTourId(t.getId()).stream().findFirst().orElse(null)
+                : coverUrls.get(0);
+
         return new TourCardResponse(
                 t.getId(),
                 t.getTitle(),
@@ -343,7 +349,8 @@ public class TourServiceImpl implements TourService {
                 t.getStatus(),
                 priceFrom,
                 upcoming,
-                t.getHighlights()
+                t.getHighlights(),
+                coverUrl
         );
     }
 

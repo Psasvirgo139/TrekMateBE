@@ -60,7 +60,8 @@ public class DataInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (userRepository.count() > 0) {
-            log.info("[DataInitializer] Database đã có dữ liệu — bỏ qua seed.");
+            log.info("[DataInitializer] Database đã có dữ liệu — cập nhật ảnh nếu cần.");
+            updateSeededTourImages();
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
@@ -109,7 +110,7 @@ public class DataInitializer implements CommandLineRunner {
     private void seedTourImages(Tour fansipan, Tour taNang, Tour mapiLeng, java.util.UUID adminId) {
         tourImageRepository.save(TourImage.builder()
                 .tour(fansipan)
-                .imageUrl("https://images.unsplash.com/photo-1558005530-a79588561a7a?auto=format&fit=crop&w=800&q=80")
+                .imageUrl("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80")
                 .caption("Bình minh trên đỉnh Fansipan")
                 .altText("Fansipan summit sunrise")
                 .isCover(true)
@@ -119,7 +120,7 @@ public class DataInitializer implements CommandLineRunner {
 
         tourImageRepository.save(TourImage.builder()
                 .tour(fansipan)
-                .imageUrl("https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?auto=format&fit=crop&w=800&q=80")
+                .imageUrl("https://images.unsplash.com/photo-1623090857341-4078f1e0ee34?auto=format&fit=crop&w=1200&q=80")
                 .caption("Rừng nguyên sinh Hoàng Liên Sơn")
                 .altText("Hoang Lien Son forest")
                 .isCover(false)
@@ -129,7 +130,7 @@ public class DataInitializer implements CommandLineRunner {
 
         tourImageRepository.save(TourImage.builder()
                 .tour(taNang)
-                .imageUrl("https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&w=800&q=80")
+                .imageUrl("https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80")
                 .caption("Thảo nguyên Tà Năng Phan Dũng")
                 .altText("Ta Nang Phan Dung grasslands")
                 .isCover(true)
@@ -139,7 +140,7 @@ public class DataInitializer implements CommandLineRunner {
 
         tourImageRepository.save(TourImage.builder()
                 .tour(mapiLeng)
-                .imageUrl("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80")
+                .imageUrl("https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80")
                 .caption("Hùng vĩ Mã Pí Lèng Hà Giang")
                 .altText("Ma Pi Leng pass")
                 .isCover(true)
@@ -652,6 +653,31 @@ public class DataInitializer implements CommandLineRunner {
                 .itinerary(itinerary).waypoint(waypoint)
                 .visitOrder((short) order).isMandatory(mandatory)
                 .visitNotes(notes).estimatedArrival(LocalTime.parse(arrival)).build());
+    }
+
+    private void updateSeededTourImages() {
+        try {
+            tourImageRepository.findAll().forEach(img -> {
+                if (img.getAltText() != null) {
+                    if (img.getAltText().equals("Fansipan summit sunrise")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    } else if (img.getAltText().equals("Hoang Lien Son forest")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1623090857341-4078f1e0ee34?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    } else if (img.getAltText().equals("Ta Nang Phan Dung grasslands")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    } else if (img.getAltText().equals("Ma Pi Leng pass")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    }
+                }
+            });
+            log.info("[DataInitializer] Đã cập nhật ảnh đẹp cho các địa điểm.");
+        } catch (Exception e) {
+            log.error("[DataInitializer] Lỗi khi cập nhật ảnh đẹp: {}", e.getMessage());
+        }
     }
 }
 
