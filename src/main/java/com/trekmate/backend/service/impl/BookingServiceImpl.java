@@ -345,7 +345,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public void expirePendingBookings(int expirationMinutes) {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(expirationMinutes);
-        List<Booking> pendingBookings = bookingRepository.findByStatusAndCreatedAtBefore(
+        List<Booking> pendingBookings = bookingRepository.findByStatusAndBookedAtBefore(
                 com.trekmate.backend.model.enums.BookingStatus.PENDING, cutoff);
 
         if (pendingBookings.isEmpty()) {

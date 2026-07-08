@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
-    List<Booking> findByStatusAndCreatedAtBefore(BookingStatus status, LocalDateTime dateTime);
+    List<Booking> findByStatusAndBookedAtBefore(BookingStatus status, LocalDateTime dateTime);
     Optional<Booking> findByBookingCode(String bookingCode);
     Page<Booking> findByUserId(UUID userId, Pageable pageable);
     Page<Booking> findByDepartureId(UUID departureId, Pageable pageable);
