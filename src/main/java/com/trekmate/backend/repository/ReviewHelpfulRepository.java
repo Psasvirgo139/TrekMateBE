@@ -7,4 +7,5 @@ import java.util.UUID;
 @Repository
 public interface ReviewHelpfulRepository extends JpaRepository<ReviewHelpful, ReviewHelpfulId> {
     long countByReviewId(Long reviewId);
+    boolean existsByIdReviewIdAndIdUserId(Long reviewId, UUID userId);
 }
