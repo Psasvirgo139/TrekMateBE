@@ -3,7 +3,11 @@ package com.trekmate.backend.mapper;
 import com.trekmate.backend.dto.request.*;
 import com.trekmate.backend.dto.response.*;
 import com.trekmate.backend.model.*;
+import com.trekmate.backend.model.enums.TourAttributeType;
 import com.trekmate.backend.repository.TourWaypointRepository;
+import com.trekmate.backend.repository.TourAttributeRepository;
+import com.trekmate.backend.repository.TourDepartureRepository;
+import com.trekmate.backend.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +21,9 @@ import java.util.stream.Collectors;
 public class TourMapper {
 
     private final TourWaypointRepository waypointRepository;
+    private final TourAttributeRepository tourAttributeRepository;
+    private final TourDepartureRepository departureRepository;
+    private final BookingRepository bookingRepository;
 
     public TourDetailResponse toTourDetailResponse(Tour tour) {
         if (tour == null) return null;
@@ -55,8 +62,8 @@ public class TourMapper {
                 tour.getStatus(),
                 tour.getAvgRating(),
                 tour.getTotalReviews(),
-                tour.getTotalDepartures(),
-                tour.getTotalBookings(),
+                (int) departureRepository.countByTourId(tour.getId()),
+                (int) bookingRepository.countByDepartureTourId(tour.getId()),
                 tour.getCreatedAt(),
                 tour.getUpdatedAt(),
                 images,
@@ -199,10 +206,49 @@ public class TourMapper {
         tour.setEndLat(req.endLat());
         tour.setEndLng(req.endLng());
         tour.setRouteGpxUrl(req.routeGpxUrl());
-        tour.setHighlights(req.highlights() != null ? req.highlights() : new ArrayList<>());
-        tour.setIncludes(req.includes() != null ? req.includes() : new ArrayList<>());
-        tour.setExcludes(req.excludes() != null ? req.excludes() : new ArrayList<>());
-        tour.setRequirements(req.requirements() != null ? req.requirements() : new ArrayList<>());
+        
+        List<TourAttribute> updatedAttributes = new ArrayList<>();
+        if (req.highlights() != null) {
+            for (String h : req.highlights()) {
+                if (h == null || h.trim().isEmpty()) continue;
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.HIGHLIGHT, h.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(
+                                TourAttribute.builder().type(TourAttributeType.HIGHLIGHT).content(h.trim()).build()
+                        ));
+                updatedAttributes.add(attr);
+            }
+        }
+        if (req.includes() != null) {
+            for (String i : req.includes()) {
+                if (i == null || i.trim().isEmpty()) continue;
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.INCLUDE, i.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(
+                                TourAttribute.builder().type(TourAttributeType.INCLUDE).content(i.trim()).build()
+                        ));
+                updatedAttributes.add(attr);
+            }
+        }
+        if (req.excludes() != null) {
+            for (String e : req.excludes()) {
+                if (e == null || e.trim().isEmpty()) continue;
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.EXCLUDE, e.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(
+                                TourAttribute.builder().type(TourAttributeType.EXCLUDE).content(e.trim()).build()
+                        ));
+                updatedAttributes.add(attr);
+            }
+        }
+        if (req.requirements() != null) {
+            for (String r : req.requirements()) {
+                if (r == null || r.trim().isEmpty()) continue;
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.REQUIREMENT, r.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(
+                                TourAttribute.builder().type(TourAttributeType.REQUIREMENT).content(r.trim()).build()
+                        ));
+                updatedAttributes.add(attr);
+            }
+        }
+        tour.setAttributes(updatedAttributes);
         if (req.status() != null) {
             tour.setStatus(req.status());
         }
