@@ -93,6 +93,14 @@ public class TourController {
         return ResponseEntity.ok(dto);
     }
 
+    @GetMapping("/{id}/clone-source")
+    @Operation(summary = "Lấy dữ liệu nguồn để nhân bản tour", description = "Trả về chi tiết tour nhưng xóa các trường ID, slug, rating và đánh giá để chuẩn bị cho việc tạo mới pre-fill.")
+    public ResponseEntity<TourDetailResponse> getTourForClone(@PathVariable UUID id) {
+        log.info("REST request to get tour clone source: {}", id);
+        TourDetailResponse dto = tourService.getTourForClone(id);
+        return ResponseEntity.ok(dto);
+    }
+
     @PostMapping
     @Operation(summary = "Tạo tour mới", description = "Tạo một tour mới. Slug sẽ tự động được tạo từ title nếu để trống.")
     public ResponseEntity<TourDetailResponse> createTour(@Valid @RequestBody TourRequest request) {
