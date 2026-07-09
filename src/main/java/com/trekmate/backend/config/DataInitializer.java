@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,6 +45,9 @@ public class DataInitializer implements CommandLineRunner {
     private final EquipmentCategoryRepository equipmentCategoryRepository;
     private final EquipmentRepository         equipmentRepository;
     private final PasswordEncoder             passwordEncoder;
+    private final LocationRepository          locationRepository;
+    private final TourAttributeRepository     tourAttributeRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // ─── Wrapper giữ các entity đã seed để truyền giữa các bước ───────────────
     private record SeedUsers(
@@ -58,12 +62,59 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE tours DROP COLUMN IF EXISTS excludes");
+            jdbcTemplate.execute("ALTER TABLE tours DROP COLUMN IF EXISTS includes");
+            jdbcTemplate.execute("ALTER TABLE tours DROP COLUMN IF EXISTS highlights");
+            jdbcTemplate.execute("ALTER TABLE tours DROP COLUMN IF EXISTS requirements");
+            log.info("[DataInitializer] Đã dọn dẹp các cột thừa (excludes, includes, highlights, requirements) trong bảng tours thành công!");
+        } catch (Exception e) {
+            log.warn("[DataInitializer] Không thể dọn dẹp cột thừa trong bảng tours: {}", e.getMessage());
+        }
+
+        try {
+            Integer hasIdCol = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'guides' AND column_name = 'id'",
+                Integer.class
+            );
+            if (hasIdCol != null && hasIdCol > 0) {
+                log.info("[DataInitializer] Phát hiện cột id cũ trong bảng guides. Tiến hành di chuyển khoá chính sang user_id...");
+                
+                // 1. Drop constraints first to avoid violations during update
+                jdbcTemplate.execute("ALTER TABLE departure_guides DROP CONSTRAINT IF EXISTS fkv9i7wwx3s3xpmnrjhv9s1msq");
+                jdbcTemplate.execute("ALTER TABLE reviews DROP CONSTRAINT IF EXISTS fkbec51k4am7j0j64piv7gl42l7");
+                jdbcTemplate.execute("ALTER TABLE guide_ratings DROP CONSTRAINT IF EXISTS fk7q038v2ptud4kd2xhx7pdh2qq");
+
+                // 2. Now update values safely without active FK constraints
+                jdbcTemplate.execute("UPDATE departure_guides dg SET guide_id = g.user_id FROM guides g WHERE dg.guide_id = g.id");
+                jdbcTemplate.execute("UPDATE reviews r SET guide_id = g.user_id FROM guides g WHERE r.guide_id = g.id");
+                jdbcTemplate.execute("UPDATE guide_ratings gr SET guide_id = g.user_id FROM guides g WHERE gr.guide_id = g.id");
+                
+                // 3. Drop primary key and old column
+                jdbcTemplate.execute("ALTER TABLE guides DROP CONSTRAINT IF EXISTS guides_pkey");
+                jdbcTemplate.execute("ALTER TABLE guides DROP COLUMN IF EXISTS id");
+                
+                // 4. Recreate primary key on user_id
+                jdbcTemplate.execute("ALTER TABLE guides ADD CONSTRAINT guides_pkey PRIMARY KEY (user_id)");
+                
+                // 5. Recreate foreign keys pointing to user_id
+                jdbcTemplate.execute("ALTER TABLE departure_guides ADD CONSTRAINT fkv9i7wwx3s3xpmnrjhv9s1msq FOREIGN KEY (guide_id) REFERENCES guides(user_id)");
+                jdbcTemplate.execute("ALTER TABLE reviews ADD CONSTRAINT fkbec51k4am7j0j64piv7gl42l7 FOREIGN KEY (guide_id) REFERENCES guides(user_id)");
+                jdbcTemplate.execute("ALTER TABLE guide_ratings ADD CONSTRAINT fk7q038v2ptud4kd2xhx7pdh2qq FOREIGN KEY (guide_id) REFERENCES guides(user_id)");
+                
+                log.info("[DataInitializer] Di chuyển khoá chính bảng guides và cập nhật các khoá ngoại thành công!");
+            }
+        } catch (Exception e) {
+            log.error("[DataInitializer] Lỗi khi xử lý cấu trúc bảng guides: {}", e.getMessage());
+        }
+
         if (userRepository.count() > 0) {
             log.info("[DataInitializer] Database đã có dữ liệu — bỏ qua seed.");
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
 
+        seedLocations();
         seedEquipmentCategories();
 
         SeedUsers users = seedUsers();
@@ -139,6 +190,23 @@ public class DataInitializer implements CommandLineRunner {
         log.info("[Seed] {} equipment categories and sample equipments created", data.length);
     }
 
+    private void seedLocations() {
+        if (locationRepository.count() > 0) {
+            return;
+        }
+        List<String> defaultLocations = List.of(
+            "Hà Nội", "Đà Nẵng", "TP. Hồ Chí Minh", "Vịnh Hạ Long", 
+            "Sa Pa", "Hà Giang", "Đà Lạt", "Ninh Bình", "Phú Quốc"
+        );
+        for (String name : defaultLocations) {
+            locationRepository.save(Location.builder()
+                    .name(name)
+                    .description("Địa điểm du lịch và trekking nổi tiếng " + name)
+                    .build());
+        }
+        log.info("[Seed] {} default locations created.", defaultLocations.size());
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     // Users + Customers + Guides
     // ────────────────────────────────────────────────────────────────────────────
@@ -191,7 +259,7 @@ public class DataInitializer implements CommandLineRunner {
     // ────────────────────────────────────────────────────────────────────────────
 
     private SeedTours seedTours(User admin) {
-        Tour fansipan = tourRepository.save(Tour.builder()
+        Tour fansipan = Tour.builder()
                 .title("Chinh phục Fansipan — Nóc nhà Đông Dương")
                 .slug("fansipan-summit")
                 .shortDescription("Hành trình chinh phục đỉnh Fansipan 3,147m hùng vĩ.")
@@ -199,13 +267,16 @@ public class DataInitializer implements CommandLineRunner {
                 .durationDays((short) 3).durationNights((short) 2)
                 .distanceKm(new BigDecimal("19.0")).maxElevationM(3147)
                 .startLocation("Sa Pa, Lào Cai").endLocation("Sa Pa, Lào Cai")
-                .highlights(List.of("Đỉnh cao nhất Đông Dương 3147m","Rừng nguyên sinh Hoàng Liên","Sunrise trên mây"))
-                .includes(List.of("HDV chuyên nghiệp","Lều trại","Bữa ăn trên đường","Cứu thương cơ bản"))
-                .excludes(List.of("Vé cáp treo","Bảo hiểm du lịch","Chi phí cá nhân"))
-                .requirements(List.of("Sức khoẻ tốt, leo bộ 8h/ngày","Kinh nghiệm trekking qua đêm"))
-                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build());
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(fansipan, 
+                List.of("Đỉnh cao nhất Đông Dương 3147m","Rừng nguyên sinh Hoàng Liên","Sunrise trên mây"),
+                List.of("HDV chuyên nghiệp","Lều trại","Bữa ăn trên đường","Cứu thương cơ bản"),
+                List.of("Vé cáp treo","Bảo hiểm du lịch","Chi phí cá nhân"),
+                List.of("Sức khoẻ tốt, leo bộ 8h/ngày","Kinh nghiệm trekking qua đêm")
+        );
+        fansipan = tourRepository.save(fansipan);
 
-        Tour taNang = tourRepository.save(Tour.builder()
+        Tour taNang = Tour.builder()
                 .title("Trekking Tà Năng – Phan Dũng")
                 .slug("ta-nang-phan-dung")
                 .shortDescription("Cung đường đẹp nhất Việt Nam qua thảo nguyên xanh mướt.")
@@ -213,13 +284,16 @@ public class DataInitializer implements CommandLineRunner {
                 .durationDays((short) 4).durationNights((short) 3)
                 .distanceKm(new BigDecimal("45.0")).maxElevationM(1920)
                 .startLocation("Đà Lạt, Lâm Đồng").endLocation("Phan Thiết, Bình Thuận")
-                .highlights(List.of("Thảo nguyên Tà Năng rộng lớn","Rừng thông cổ thụ","Suối Vàng"))
-                .includes(List.of("HDV","Lều trại","Bữa ăn","Xe đưa đón điểm cuối"))
-                .excludes(List.of("Bảo hiểm","Chi phí cá nhân"))
-                .requirements(List.of("Sức khoẻ bình thường","Không yêu cầu kinh nghiệm trước"))
-                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build());
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(taNang, 
+                List.of("Thảo nguyên Tà Năng rộng lớn","Rừng thông cổ thụ","Suối Vàng"),
+                List.of("HDV","Lều trại","Bữa ăn","Xe đưa đón điểm cuối"),
+                List.of("Bảo hiểm","Chi phí cá nhân"),
+                List.of("Sức khoẻ bình thường","Không yêu cầu kinh nghiệm trước")
+        );
+        taNang = tourRepository.save(taNang);
 
-        Tour mapiLeng = tourRepository.save(Tour.builder()
+        Tour mapiLeng = Tour.builder()
                 .title("Mã Pí Lèng — Đèo huyền thoại miền đá xám")
                 .slug("ma-pi-leng-trek")
                 .shortDescription("Chinh phục đèo Mã Pí Lèng và cao nguyên đá Đồng Văn.")
@@ -227,14 +301,50 @@ public class DataInitializer implements CommandLineRunner {
                 .durationDays((short) 2).durationNights((short) 1)
                 .distanceKm(new BigDecimal("28.0")).maxElevationM(1300)
                 .startLocation("Hà Giang").endLocation("Hà Giang")
-                .highlights(List.of("Đèo Mã Pí Lèng hùng vĩ","Sông Nho Quế xanh biếc","Làng đá cổ Đồng Văn"))
-                .includes(List.of("HDV địa phương","Lều trại","Bữa ăn"))
-                .excludes(List.of("Di chuyển đến Hà Giang","Bảo hiểm"))
-                .requirements(List.of("Sức khoẻ tốt","Không sợ độ cao"))
-                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build());
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(mapiLeng, 
+                List.of("Đèo Mã Pí Lèng hùng vĩ","Sông Nho Quế xanh biếc","Làng đá cổ Đồng Văn"),
+                List.of("HDV địa phương","Lều trại","Bữa ăn"),
+                List.of("Di chuyển đến Hà Giang","Bảo hiểm"),
+                List.of("Sức khoẻ tốt","Không sợ độ cao")
+        );
+        mapiLeng = tourRepository.save(mapiLeng);
 
         log.info("[Seed] 3 tours created.");
         return new SeedTours(fansipan, taNang, mapiLeng);
+    }
+
+    private void mapAttributes(Tour tour, List<String> highlights, List<String> includes, List<String> excludes, List<String> reqs) {
+        List<TourAttribute> attrs = new ArrayList<>();
+        if (highlights != null) {
+            for (String h : highlights) {
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.HIGHLIGHT, h.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(TourAttribute.builder().type(TourAttributeType.HIGHLIGHT).content(h.trim()).build()));
+                attrs.add(attr);
+            }
+        }
+        if (includes != null) {
+            for (String i : includes) {
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.INCLUDE, i.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(TourAttribute.builder().type(TourAttributeType.INCLUDE).content(i.trim()).build()));
+                attrs.add(attr);
+            }
+        }
+        if (excludes != null) {
+            for (String e : excludes) {
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.EXCLUDE, e.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(TourAttribute.builder().type(TourAttributeType.EXCLUDE).content(e.trim()).build()));
+                attrs.add(attr);
+            }
+        }
+        if (reqs != null) {
+            for (String r : reqs) {
+                TourAttribute attr = tourAttributeRepository.findByTypeAndContentIgnoreCase(TourAttributeType.REQUIREMENT, r.trim())
+                        .orElseGet(() -> tourAttributeRepository.save(TourAttribute.builder().type(TourAttributeType.REQUIREMENT).content(r.trim()).build()));
+                attrs.add(attr);
+            }
+        }
+        tour.setAttributes(attrs);
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -394,7 +504,7 @@ public class DataInitializer implements CommandLineRunner {
             String meetingPoint, String weatherSummary, String weatherIcon,
             short tempMin, short tempMax, DepartureStatus status, Guide leadGuide) {
 
-        TourDeparture dep = departureRepository.save(TourDeparture.builder()
+        TourDeparture dep = departureRepository.saveAndFlush(TourDeparture.builder()
                 .tour(tour)
                 .departureDate(LocalDate.parse(depDate))
                 .returnDate(LocalDate.parse(retDate))
@@ -408,7 +518,7 @@ public class DataInitializer implements CommandLineRunner {
                 .weatherUpdatedAt(LocalDateTime.now())
                 .status(status).build());
 
-        departureGuideRepository.save(DepartureGuide.builder()
+        departureGuideRepository.saveAndFlush(DepartureGuide.builder()
                 .id(new DepartureGuideId(dep.getId(), leadGuide.getId()))
                 .departure(dep).guide(leadGuide)
                 .role(GuideRoleInTour.LEAD)
@@ -546,13 +656,13 @@ public class DataInitializer implements CommandLineRunner {
     // ────────────────────────────────────────────────────────────────────────────
 
     private User createUser(String email, String phone, String pw, boolean isAdmin) {
-        return userRepository.save(User.builder()
+        return userRepository.saveAndFlush(User.builder()
                 .email(email).phone(phone).passwordHash(pw)
                 .isVerified(true).isActive(true).isAdmin(isAdmin).build());
     }
 
     private void createCustomer(User user, String fullName, String dob, FitnessLevel fitness) {
-        customerRepository.save(Customer.builder()
+        customerRepository.saveAndFlush(Customer.builder()
                 .user(user).fullName(fullName)
                 .dateOfBirth(LocalDate.parse(dob))
                 .nationality("Việt Nam").fitnessLevel(fitness).build());
@@ -562,7 +672,7 @@ public class DataInitializer implements CommandLineRunner {
                                List<Map<String, Object>> certs,
                                List<String> langs, List<String> specs,
                                String province, String rating, int totalReviews, int toursLed) {
-        return guideRepository.save(Guide.builder()
+        return guideRepository.saveAndFlush(Guide.builder()
                 .user(user).displayName(displayName).bio(bio)
                 .experienceYears(expYears).certifications(certs)
                 .languages(langs).specializations(specs).homeProvince(province)
