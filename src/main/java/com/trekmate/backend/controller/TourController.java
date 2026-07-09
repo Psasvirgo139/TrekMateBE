@@ -2,8 +2,12 @@ package com.trekmate.backend.controller;
 
 import com.trekmate.backend.dto.request.*;
 import com.trekmate.backend.dto.response.*;
+import com.trekmate.backend.model.TourDeparture;
+import com.trekmate.backend.model.enums.DepartureStatus;
 import com.trekmate.backend.model.enums.DifficultyLevel;
 import com.trekmate.backend.model.enums.TourStatus;
+import com.trekmate.backend.repository.TourDepartureRepository;
+import com.trekmate.backend.repository.TourRepository;
 import com.trekmate.backend.service.TourService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +21,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @Validated
@@ -28,6 +37,8 @@ import java.util.UUID;
 public class TourController {
 
     private final TourService tourService;
+    private final TourDepartureRepository departureRepository;
+    private final TourRepository tourRepository;
 
     // ────────────────────────────────────────────────────────────────────────────
     // Listing / Search
@@ -184,5 +195,53 @@ public class TourController {
             @PathVariable Long imageId) {
         tourService.deleteTourImage(tourId, imageId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Departures (public — for booking widget)
+    // ────────────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/{idOrSlug}/departures")
+    @Operation(summary = "Lấy danh sách đợt khởi hành của tour",
+               description = "Trả về các đợt khởi hành còn OPEN/SCHEDULED của tour. Dùng cho widget đặt tour ở trang chi tiết.")
+    public ResponseEntity<List<Map<String, Object>>> getDeparturesByTour(
+            @PathVariable String idOrSlug) {
+        log.info("REST request to get departures for tour: {}", idOrSlug);
+
+        // Resolve UUID or slug
+        UUID tourId;
+        try {
+            tourId = UUID.fromString(idOrSlug);
+        } catch (IllegalArgumentException e) {
+            tourId = tourRepository.findBySlug(idOrSlug)
+                    .map(t -> t.getId())
+                    .orElse(null);
+        }
+        if (tourId == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        final UUID finalTourId = tourId;
+        List<Map<String, Object>> result = departureRepository
+                .findByTourIdAndStatus(finalTourId, DepartureStatus.OPEN)
+                .stream()
+                .filter(d -> d.getDepartureDate() != null && !d.getDepartureDate().isBefore(LocalDate.now()))
+                .map(d -> {
+                    int availableSlots = (d.getMaxGroupSize() == null ? 0 : d.getMaxGroupSize())
+                            - (d.getBookedSlots() == null ? 0 : d.getBookedSlots());
+                    return Map.<String, Object>of(
+                            "id",             d.getId().toString(),
+                            "departureDate",  d.getDepartureDate().toString(),
+                            "returnDate",     d.getReturnDate() != null ? d.getReturnDate().toString() : "",
+                            "cutoffDate",     d.getCutoffDate() != null ? d.getCutoffDate().toString() : "",
+                            "pricePerPerson", d.getPricePerPerson() != null ? d.getPricePerPerson() : BigDecimal.ZERO,
+                            "availableSlots", availableSlots,
+                            "meetingPoint",   d.getMeetingPoint() != null ? d.getMeetingPoint() : "",
+                            "allowJoinTour",  d.getAllowJoinTour() != null && d.getAllowJoinTour()
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
     }
 }

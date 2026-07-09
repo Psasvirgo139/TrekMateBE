@@ -76,7 +76,7 @@ app:
     otp-expiration-minutes: 30
     otp-cooldown-seconds: 60
     otp-max-attempts: 5
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
   google:
     client-id: ${GOOGLE_CLIENT_ID:328260392043-l423v02sl76hbr2kc7vv6s8448m9pv35.apps.googleusercontent.com}
   payos:
@@ -84,8 +84,8 @@ app:
     api-key: ${PAYOS_API_KEY:416d36ad-63bc-4e41-972b-ebb2b651fd21}
     checksum-key: ${PAYOS_CHECKSUM_KEY:c9e95bc337d249b394a3bbc4cb5baf16772c2a10354bc8935b67adb3172fbded}
     base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
-    return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/success}
-    cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/cancel}
+    return-url: ${PAYOS_RETURN_URL:http://localhost:5173/payment/success}
+    cancel-url: ${PAYOS_CANCEL_URL:http://localhost:5173/payment/cancel}
 
 logging:
   level:

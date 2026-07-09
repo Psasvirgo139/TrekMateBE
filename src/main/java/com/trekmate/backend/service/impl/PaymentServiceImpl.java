@@ -78,7 +78,7 @@ public class PaymentServiceImpl implements PaymentService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        long orderCode = booking.getId() * 1000 + (System.currentTimeMillis() % 1000);
+        long orderCode = (System.currentTimeMillis() % 100000000000L) * 100 + (int)(Math.random() * 100);
         String transactionCode = "PAYOS-" + orderCode;
         int amount = payAmount.intValue();
 

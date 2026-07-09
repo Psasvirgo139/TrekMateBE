@@ -60,6 +60,27 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         if (userRepository.count() > 0) {
             log.info("[DataInitializer] Database đã có dữ liệu — bỏ qua seed.");
+            // Tự động dịch chuyển các ngày khởi hành cũ trong quá khứ lên tương lai để dữ liệu demo luôn mới
+            List<TourDeparture> allDeps = departureRepository.findAll();
+            LocalDate today = LocalDate.now();
+            boolean updatedAny = false;
+            for (TourDeparture dep : allDeps) {
+                if (dep.getDepartureDate() != null && dep.getDepartureDate().isBefore(today) && dep.getStatus() == DepartureStatus.OPEN) {
+                    long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(dep.getDepartureDate(), today) + 10;
+                    dep.setDepartureDate(dep.getDepartureDate().plusDays(daysDiff));
+                    if (dep.getReturnDate() != null) {
+                        dep.setReturnDate(dep.getReturnDate().plusDays(daysDiff));
+                    }
+                    if (dep.getCutoffDate() != null) {
+                        dep.setCutoffDate(dep.getCutoffDate().plusDays(daysDiff));
+                    }
+                    departureRepository.save(dep);
+                    updatedAny = true;
+                }
+            }
+            if (updatedAny) {
+                log.info("[DataInitializer] Đã cập nhật ngày của các đợt khởi hành cũ lên tương lai để test.");
+            }
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
