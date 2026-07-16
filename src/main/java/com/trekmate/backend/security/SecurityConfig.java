@@ -26,38 +26,41 @@ public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-                http
-                                .cors(Customizer.withDefaults()) // ĐÃ THÊM: Bật tính năng CORS
-                                .csrf(AbstractHttpConfigurer::disable)
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                                .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers(
-                                                                "/v3/api-docs/**",
-                                                                "/swagger-ui/**",
-                                                                "/swagger-ui.html")
-                                                .permitAll()
-                                                .requestMatchers(HttpMethod.POST,
-                                                                "/auth/register/request-otp",
-                                                                "/auth/register/verify",
-                                                                "/auth/login",
-                                                                "/auth/google",
-                                                                "/auth/forgot-password",
-                                                                "/auth/reset-password")
-                                                .permitAll()
-                                                .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
-                                                .requestMatchers("/home/**").permitAll()
-                                                .requestMatchers("/api/tours/**").permitAll()
-                                                .requestMatchers("/v1/payments/**").authenticated()
-                                                .requestMatchers("/v1/bookings/**").authenticated()
-                                                .requestMatchers("/admin/users/**").hasRole("ADMIN")
-                                                .requestMatchers("/admin/tours/**").hasAnyRole("GUIDE", "ADMIN")
-                                                .requestMatchers("/admin/equipment/**").hasAnyRole("GUIDE", "ADMIN")
-                                                .anyRequest().authenticated())
-                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(Customizer.withDefaults()) // ĐÃ THÊM: Bật tính năng CORS
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/auth/register/request-otp",
+                                "/auth/register/verify",
+                                "/auth/login",
+                                "/auth/google",
+                                "/auth/forgot-password",
+                                "/auth/reset-password").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+                        .requestMatchers("/home/**").permitAll()
+                        .requestMatchers("/api/tours/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/locations/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/locations/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/tour-attributes/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/tour-attributes/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers("/v1/payments/**").authenticated()
+                        .requestMatchers("/v1/bookings/**").authenticated()
+                        .requestMatchers("/admin/users/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/tours/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers("/admin/tour-guides/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers("/admin/equipment/**").hasAnyRole("GUIDE", "ADMIN")
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
                 return http.build();
         }
 

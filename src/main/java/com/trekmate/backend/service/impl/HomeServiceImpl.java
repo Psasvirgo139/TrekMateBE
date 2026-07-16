@@ -99,7 +99,7 @@ public class HomeServiceImpl implements HomeService {
                 t.getEndLocation(),
                 t.getAvgRating(),
                 t.getTotalReviews(),
-                t.getTotalDepartures(),
+                (int) departureRepository.countByTourId(t.getId()),
                 t.getStatus(),
                 priceFrom,
                 upcoming,
@@ -128,6 +128,7 @@ public class HomeServiceImpl implements HomeService {
         // Tên HDV dẫn chuyến
         List<String> guideNames = departureGuideRepository.findByDepartureId(dep.getId())
                 .stream()
+                .filter(dg -> dg.getGuide() != null)
                 .map(dg -> dg.getGuide().getDisplayName())
                 .collect(Collectors.toList());
 
