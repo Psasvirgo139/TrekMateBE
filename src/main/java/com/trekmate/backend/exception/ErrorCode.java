@@ -39,6 +39,10 @@ public enum ErrorCode {
     // Equipment
     EQUIPMENT_NOT_FOUND(4050, "Equipment not found", HttpStatus.NOT_FOUND),
     EQUIPMENT_OUT_OF_STOCK(4024, "Equipment is out of stock or inactive", HttpStatus.BAD_REQUEST),
+    EQUIPMENT_CATEGORY_NOT_FOUND(4051, "Equipment category not found", HttpStatus.NOT_FOUND),
+    EQUIPMENT_CATEGORY_HAS_ITEMS(4026, "Category has equipment items, cannot delete", HttpStatus.CONFLICT),
+    EQUIPMENT_RENTAL_NOT_FOUND(4052, "Equipment rental not found", HttpStatus.NOT_FOUND),
+    EQUIPMENT_ALREADY_RETURNED(4027, "This rental has already been returned", HttpStatus.BAD_REQUEST),
 
     // Review
     REVIEW_NOT_FOUND(4045, "Review not found", HttpStatus.NOT_FOUND),

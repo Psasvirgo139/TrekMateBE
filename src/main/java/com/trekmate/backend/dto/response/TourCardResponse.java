@@ -27,5 +27,6 @@ public record TourCardResponse(
         // Số departure sắp tới (OPEN + SCHEDULED)
         long upcomingDeparturesCount,
         // Điểm nổi bật của tuyến (từ JSON highlights)
-        List<String> highlights
+        List<String> highlights,
+        String coverUrl
 ) {}

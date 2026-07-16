@@ -12,4 +12,5 @@ public interface BookingService {
     BookingDetailResponse getBookingDetail(Long id, String email);
     BookingDetailResponse cancelBooking(Long id, String email, CancelBookingRequest request);
     BookingDetailResponse createBooking(String email, CreateBookingRequest request);
+    void expirePendingBookings(int expirationMinutes);
 }

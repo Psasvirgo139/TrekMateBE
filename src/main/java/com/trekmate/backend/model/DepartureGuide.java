@@ -30,6 +30,7 @@ public class DepartureGuide {
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("guideId")
     @JoinColumn(name = "guide_id")
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private Guide guide;
 
     @Enumerated(EnumType.STRING)

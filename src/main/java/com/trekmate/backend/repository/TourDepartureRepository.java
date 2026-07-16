@@ -18,6 +18,7 @@ public interface TourDepartureRepository extends JpaRepository<TourDeparture, UU
     Page<TourDeparture> findByStatus(DepartureStatus status, Pageable pageable);
     List<TourDeparture> findByTourIdAndStatus(UUID tourId, DepartureStatus status);
     Optional<TourDeparture> findByTourIdAndDepartureDate(UUID tourId, LocalDate departureDate);
+    long countByTourId(UUID tourId);
 
     @Query("SELECT MIN(td.pricePerPerson) FROM TourDeparture td WHERE td.tour.id = :tourId AND td.status IN ('OPEN','SCHEDULED')")
     Optional<BigDecimal> findMinPriceByTourId(@Param("tourId") UUID tourId);
@@ -27,4 +28,13 @@ public interface TourDepartureRepository extends JpaRepository<TourDeparture, UU
 
     @Query("SELECT COUNT(td) FROM TourDeparture td WHERE td.status IN ('OPEN','SCHEDULED') AND td.departureDate >= CURRENT_DATE")
     long countUpcoming();
+
+    @Query("SELECT td FROM TourDeparture td WHERE td.tour.id = :tourId " +
+           "AND td.status IN :statuses " +
+           "AND td.departureDate >= :date " +
+           "ORDER BY td.departureDate ASC")
+    List<TourDeparture> findUpcomingDepartures(
+            @Param("tourId") UUID tourId,
+            @Param("statuses") List<DepartureStatus> statuses,
+            @Param("date") LocalDate date);
 }

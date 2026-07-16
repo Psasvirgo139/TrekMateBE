@@ -151,9 +151,17 @@ target/
 # VS Code files
 .vscode/
 
+<<<<<<< Updated upstream
 # Local dev secrets (Gmail App Password, etc.)
 src/main/resources/application-dev-local.yml
 application-dev-local.yml
 .env
 # macOS
 .DS_Store
+=======
+# Environment variables - chứa thông tin nhạy cảm, KHÔNG commit
+.env
+.env.local
+.env.*.local
+# .env.example được phép commit (template không có thông tin thật)
+>>>>>>> Stashed changes

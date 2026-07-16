@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,8 @@ public class TourServiceImpl implements TourService {
     private final TourDepartureRepository departureRepository;
     private final BookingRepository bookingRepository;
     private final TourMapper tourMapper;
+    private final DepartureGuideRepository departureGuideRepository;
+    private final DepartureWeatherDailyRepository weatherDailyRepository;
 
     // ────────────────────────────────────────────────────────────────────────────
     // Tour CRUD
@@ -59,6 +62,50 @@ public class TourServiceImpl implements TourService {
         Tour tour = resolveTour(idOrSlug);
         loadTourDetailRelations(tour);
         return tourMapper.toTourDetailResponse(tour);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TourDetailResponse getTourForClone(UUID id) {
+        log.debug("Get tour for clone source: {}", id);
+        Tour tour = tourRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
+        loadTourDetailRelations(tour);
+        TourDetailResponse original = tourMapper.toTourDetailResponse(tour);
+
+        return new TourDetailResponse(
+                null,
+                original.title() + " (Copy)",
+                original.slug() + "-copy",
+                original.shortDescription(),
+                original.description(),
+                original.difficulty(),
+                original.durationDays(),
+                original.durationNights(),
+                original.distanceKm(),
+                original.maxElevationM(),
+                original.startLocation(),
+                original.endLocation(),
+                original.startLat(),
+                original.startLng(),
+                original.endLat(),
+                original.endLng(),
+                original.routeGpxUrl(),
+                original.highlights(),
+                original.includes(),
+                original.excludes(),
+                original.requirements(),
+                original.status(),
+                java.math.BigDecimal.ZERO,
+                0,
+                0,
+                0,
+                null,
+                null,
+                original.images(),
+                original.waypoints(),
+                original.dailyItinerary()
+        );
     }
 
     @Override
@@ -323,6 +370,12 @@ public class TourServiceImpl implements TourService {
         BigDecimal priceFrom = departureRepository.findMinPriceByTourId(t.getId()).orElse(null);
         long upcoming = departureRepository.countUpcomingByTourId(t.getId());
 
+        // Dùng query trực tiếp để tránh LazyInitializationException trên LAZY images
+        List<String> coverUrls = imageRepository.findCoverUrlsByTourId(t.getId());
+        String coverUrl = coverUrls.isEmpty()
+                ? imageRepository.findFirstImageUrlByTourId(t.getId()).stream().findFirst().orElse(null)
+                : coverUrls.get(0);
+
         return new TourCardResponse(
                 t.getId(),
                 t.getTitle(),
@@ -336,11 +389,12 @@ public class TourServiceImpl implements TourService {
                 t.getEndLocation(),
                 t.getAvgRating(),
                 t.getTotalReviews(),
-                t.getTotalDepartures(),
+                (int) departureRepository.countByTourId(t.getId()),
                 t.getStatus(),
                 priceFrom,
                 upcoming,
-                t.getHighlights()
+                t.getHighlights(),
+                coverUrl
         );
     }
 
@@ -385,5 +439,103 @@ public class TourServiceImpl implements TourService {
 
     private List<ItineraryWaypoint> loadItineraryWaypointLinks(UUID itineraryId) {
         return new ArrayList<>(itineraryWaypointRepository.findByItineraryIdOrderByVisitOrderAsc(itineraryId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DepartureCardResponse> getUpcomingDepartures(String idOrSlug) {
+        Tour tour = resolveTour(idOrSlug);
+        List<com.trekmate.backend.model.enums.DepartureStatus> statuses = 
+                List.of(com.trekmate.backend.model.enums.DepartureStatus.OPEN, 
+                        com.trekmate.backend.model.enums.DepartureStatus.SCHEDULED);
+
+        List<TourDeparture> departures = departureRepository.findUpcomingDepartures(
+                tour.getId(), statuses, LocalDate.now());
+
+        return departures.stream()
+                .map(this::toDepartureCard)
+                .collect(Collectors.toList());
+    }
+
+    private DepartureCardResponse toDepartureCard(TourDeparture dep) {
+        Tour tour = dep.getTour();
+
+        List<String> guideNames = departureGuideRepository.findByDepartureId(dep.getId())
+                .stream()
+                .map(dg -> dg.getGuide().getDisplayName())
+                .collect(Collectors.toList());
+
+        List<WeatherDayResponse> weatherDaily = weatherDailyRepository
+                .findByDepartureIdOrderByDayNumberAsc(dep.getId())
+                .stream()
+                .map(this::toWeatherDay)
+                .collect(Collectors.toList());
+
+        int maxWarnLevel = weatherDaily.stream()
+                .map(w -> warningLevelToInt(w.warningLevel()))
+                .max(Integer::compareTo)
+                .orElse(0);
+
+        short available = (short) (dep.getMaxGroupSize() - dep.getBookedSlots());
+
+        return new DepartureCardResponse(
+                dep.getId(),
+                tour.getId(),
+                tour.getTitle(),
+                tour.getSlug(),
+                tour.getDifficulty(),
+                tour.getDurationDays(),
+                dep.getDepartureDate(),
+                dep.getReturnDate(),
+                dep.getCutoffDate(),
+                dep.getPricePerPerson(),
+                dep.getMaxGroupSize(),
+                dep.getBookedSlots(),
+                available,
+                dep.getAllowJoinTour(),
+                dep.getMeetingPoint(),
+                dep.getWeatherSummary(),
+                dep.getWeatherIcon(),
+                dep.getTempMinC(),
+                dep.getTempMaxC(),
+                dep.getWeatherWarning(),
+                maxWarnLevel,
+                dep.getStatus(),
+                guideNames,
+                weatherDaily
+        );
+    }
+
+    private WeatherDayResponse toWeatherDay(DepartureWeatherDaily w) {
+        return new WeatherDayResponse(
+                w.getDayNumber(),
+                w.getForecastDate(),
+                w.getLocationLabel(),
+                w.getElevationM(),
+                w.getWeatherSummary(),
+                w.getWeatherIcon(),
+                w.getTempMinC(),
+                w.getTempMaxC(),
+                w.getFeelsLikeMinC(),
+                w.getFeelsLikeMaxC(),
+                w.getPrecipitationMm(),
+                w.getPrecipitationProb(),
+                w.getWindSpeedKmh(),
+                w.getWindGustKmh(),
+                w.getHumidityPct(),
+                w.getVisibilityKm(),
+                w.getWeatherWarning(),
+                w.getWarningLevel()
+        );
+    }
+
+    private int warningLevelToInt(com.trekmate.backend.model.enums.WarningLevel wl) {
+        if (wl == null) return 0;
+        return switch (wl) {
+            case INFO -> 1;
+            case CAUTION -> 2;
+            case WARNING -> 3;
+            case DANGER -> 4;
+        };
     }
 }

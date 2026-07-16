@@ -18,4 +18,16 @@ public interface GuideRepository extends JpaRepository<Guide, UUID> {
            "WHERE dg.guide.id = :guideId " +
            "AND dg.departure.status IN ('OPEN','SCHEDULED')")
     long countUpcomingToursByGuideId(@Param("guideId") UUID guideId);
+
+    @Query("SELECT g FROM Guide g JOIN g.user u " +
+           "WHERE u.isActive = true AND g.isAvailable = true " +
+           "AND g.id NOT IN (" +
+           "  SELECT dg.guide.id FROM DepartureGuide dg JOIN dg.departure td " +
+           "  WHERE td.status NOT IN ('CANCELLED','COMPLETED') " +
+           "  AND (:excludeDepartureId IS NULL OR td.id <> :excludeDepartureId) " +
+           "  AND td.departureDate <= :endDate AND td.returnDate >= :startDate" +
+           ")")
+    java.util.List<Guide> findAvailableGuides(@Param("startDate") java.time.LocalDate startDate,
+                                            @Param("endDate") java.time.LocalDate endDate,
+                                            @Param("excludeDepartureId") UUID excludeDepartureId);
 }

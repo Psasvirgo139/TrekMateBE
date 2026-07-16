@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -90,6 +91,14 @@ public class TourController {
     public ResponseEntity<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
         log.info("REST request to get tour detail: {}", idOrSlug);
         TourDetailResponse dto = tourService.getTourByIdOrSlug(idOrSlug);
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/{id}/clone-source")
+    @Operation(summary = "Lấy dữ liệu nguồn để nhân bản tour", description = "Trả về chi tiết tour nhưng xóa các trường ID, slug, rating và đánh giá để chuẩn bị cho việc tạo mới pre-fill.")
+    public ResponseEntity<TourDetailResponse> getTourForClone(@PathVariable UUID id) {
+        log.info("REST request to get tour clone source: {}", id);
+        TourDetailResponse dto = tourService.getTourForClone(id);
         return ResponseEntity.ok(dto);
     }
 
@@ -184,5 +193,17 @@ public class TourController {
             @PathVariable Long imageId) {
         tourService.deleteTourImage(tourId, imageId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{idOrSlug}/departures")
+    @Operation(summary = "Lấy lịch khởi hành khả dụng của tour", description = "Trả về danh sách các đợt khởi hành sắp tới ở trạng thái OPEN/SCHEDULED của một tour theo ID hoặc Slug.")
+    public ApiResponse<List<DepartureCardResponse>> getUpcomingDepartures(@PathVariable String idOrSlug) {
+        log.info("REST request to get upcoming departures for tour: {}", idOrSlug);
+        List<DepartureCardResponse> data = tourService.getUpcomingDepartures(idOrSlug);
+        return ApiResponse.<List<DepartureCardResponse>>builder()
+                .code(200)
+                .message("Lấy lịch khởi hành thành công")
+                .data(data)
+                .build();
     }
 }
