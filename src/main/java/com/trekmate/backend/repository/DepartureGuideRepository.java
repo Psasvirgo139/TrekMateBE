@@ -17,17 +17,9 @@ public interface DepartureGuideRepository extends JpaRepository<DepartureGuide, 
     long countByGuideIdAndDepartureStatus(UUID guideId, DepartureStatus status);
     @Query("SELECT dg FROM DepartureGuide dg JOIN dg.departure td " +
            "WHERE dg.guide.id = :guideId " +
-           "AND (:excludeDepartureId IS NULL OR td.id <> :excludeDepartureId) " +
            "AND td.status NOT IN ('CANCELLED','COMPLETED') " +
            "AND td.departureDate <= :endDate AND td.returnDate >= :startDate")
     List<DepartureGuide> findConflicts(@Param("guideId") UUID guideId,
-                                       @Param("excludeDepartureId") UUID excludeDepartureId,
                                        @Param("startDate") LocalDate startDate,
-                                       @Param("endDate") java.time.LocalDate endDate);
-
-    @Query("SELECT dg FROM DepartureGuide dg JOIN FETCH dg.departure td JOIN FETCH dg.guide g " +
-           "WHERE td.status NOT IN ('CANCELLED') " +
-           "AND td.departureDate <= :endDate AND td.returnDate >= :startDate")
-    List<DepartureGuide> findAssignmentsInPeriod(@Param("startDate") LocalDate startDate,
-                                                 @Param("endDate") LocalDate endDate);
+                                       @Param("endDate") LocalDate endDate);
 }

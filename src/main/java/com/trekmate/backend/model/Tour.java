@@ -80,46 +80,25 @@ public class Tour extends BaseEntity {
     @Column(name = "route_gpx_url", columnDefinition = "TEXT")
     private String routeGpxUrl;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "tour_tour_attributes",
-        joinColumns = @JoinColumn(name = "tour_id"),
-        inverseJoinColumns = @JoinColumn(name = "attribute_id")
-    )
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "highlights", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
-    private List<TourAttribute> attributes = new ArrayList<>();
+    private List<String> highlights = new ArrayList<>();
 
-    public List<String> getHighlights() {
-        if (this.attributes == null) return new ArrayList<>();
-        return this.attributes.stream()
-                .filter(a -> a.getType() == com.trekmate.backend.model.enums.TourAttributeType.HIGHLIGHT)
-                .map(TourAttribute::getContent)
-                .collect(java.util.stream.Collectors.toList());
-    }
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "includes", columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<String> includes = new ArrayList<>();
 
-    public List<String> getIncludes() {
-        if (this.attributes == null) return new ArrayList<>();
-        return this.attributes.stream()
-                .filter(a -> a.getType() == com.trekmate.backend.model.enums.TourAttributeType.INCLUDE)
-                .map(TourAttribute::getContent)
-                .collect(java.util.stream.Collectors.toList());
-    }
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "excludes", columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<String> excludes = new ArrayList<>();
 
-    public List<String> getExcludes() {
-        if (this.attributes == null) return new ArrayList<>();
-        return this.attributes.stream()
-                .filter(a -> a.getType() == com.trekmate.backend.model.enums.TourAttributeType.EXCLUDE)
-                .map(TourAttribute::getContent)
-                .collect(java.util.stream.Collectors.toList());
-    }
-
-    public List<String> getRequirements() {
-        if (this.attributes == null) return new ArrayList<>();
-        return this.attributes.stream()
-                .filter(a -> a.getType() == com.trekmate.backend.model.enums.TourAttributeType.REQUIREMENT)
-                .map(TourAttribute::getContent)
-                .collect(java.util.stream.Collectors.toList());
-    }
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "requirements", columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<String> requirements = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
