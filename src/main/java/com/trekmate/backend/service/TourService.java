@@ -17,6 +17,8 @@ public interface TourService {
     
     TourDetailResponse getTourByIdOrSlug(String idOrSlug);
     
+    TourDetailResponse getTourForClone(UUID id);
+    
     TourDetailResponse createTour(TourRequest request);
     
     TourDetailResponse updateTour(UUID id, TourRequest request);

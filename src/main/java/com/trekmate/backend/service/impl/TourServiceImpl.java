@@ -65,6 +65,50 @@ public class TourServiceImpl implements TourService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public TourDetailResponse getTourForClone(UUID id) {
+        log.debug("Get tour for clone source: {}", id);
+        Tour tour = tourRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
+        loadTourDetailRelations(tour);
+        TourDetailResponse original = tourMapper.toTourDetailResponse(tour);
+
+        return new TourDetailResponse(
+                null,
+                original.title() + " (Copy)",
+                original.slug() + "-copy",
+                original.shortDescription(),
+                original.description(),
+                original.difficulty(),
+                original.durationDays(),
+                original.durationNights(),
+                original.distanceKm(),
+                original.maxElevationM(),
+                original.startLocation(),
+                original.endLocation(),
+                original.startLat(),
+                original.startLng(),
+                original.endLat(),
+                original.endLng(),
+                original.routeGpxUrl(),
+                original.highlights(),
+                original.includes(),
+                original.excludes(),
+                original.requirements(),
+                original.status(),
+                java.math.BigDecimal.ZERO,
+                0,
+                0,
+                0,
+                null,
+                null,
+                original.images(),
+                original.waypoints(),
+                original.dailyItinerary()
+        );
+    }
+
+    @Override
     @Transactional
     public TourDetailResponse createTour(TourRequest request) {
         log.debug("Creating tour: {}", request.title());
@@ -345,7 +389,7 @@ public class TourServiceImpl implements TourService {
                 t.getEndLocation(),
                 t.getAvgRating(),
                 t.getTotalReviews(),
-                t.getTotalDepartures(),
+                (int) departureRepository.countByTourId(t.getId()),
                 t.getStatus(),
                 priceFrom,
                 upcoming,
