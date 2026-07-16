@@ -33,6 +33,7 @@ public class HomeServiceImpl implements HomeService {
     private final DepartureWeatherDailyRepository weatherDailyRepository;
     private final GuideRepository                 guideRepository;
     private final BookingRepository               bookingRepository;
+    private final TourImageRepository             tourImageRepository;
 
     // ────────────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,12 @@ public class HomeServiceImpl implements HomeService {
         BigDecimal priceFrom = departureRepository.findMinPriceByTourId(t.getId()).orElse(null);
         long upcoming        = departureRepository.countUpcomingByTourId(t.getId());
 
+        // Dùng query trực tiếp để tránh LazyInitializationException trên LAZY images
+        List<String> coverUrls = tourImageRepository.findCoverUrlsByTourId(t.getId());
+        String coverUrl = coverUrls.isEmpty()
+                ? tourImageRepository.findFirstImageUrlByTourId(t.getId()).stream().findFirst().orElse(null)
+                : coverUrls.get(0);
+
         return new TourCardResponse(
                 t.getId(),
                 t.getTitle(),
@@ -92,11 +99,12 @@ public class HomeServiceImpl implements HomeService {
                 t.getEndLocation(),
                 t.getAvgRating(),
                 t.getTotalReviews(),
-                t.getTotalDepartures(),
+                (int) departureRepository.countByTourId(t.getId()),
                 t.getStatus(),
                 priceFrom,
                 upcoming,
-                t.getHighlights()
+                t.getHighlights(),
+                coverUrl
         );
     }
 
@@ -120,6 +128,7 @@ public class HomeServiceImpl implements HomeService {
         // Tên HDV dẫn chuyến
         List<String> guideNames = departureGuideRepository.findByDepartureId(dep.getId())
                 .stream()
+                .filter(dg -> dg.getGuide() != null)
                 .map(dg -> dg.getGuide().getDisplayName())
                 .collect(Collectors.toList());
 
