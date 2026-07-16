@@ -43,6 +43,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ReviewRepository            reviewRepository;
     private final EquipmentCategoryRepository equipmentCategoryRepository;
     private final EquipmentRepository         equipmentRepository;
+    private final TourImageRepository         tourImageRepository;
     private final PasswordEncoder             passwordEncoder;
 
     // ─── Wrapper giữ các entity đã seed để truyền giữa các bước ───────────────
@@ -59,7 +60,8 @@ public class DataInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (userRepository.count() > 0) {
-            log.info("[DataInitializer] Database đã có dữ liệu — bỏ qua seed.");
+            log.info("[DataInitializer] Database đã có dữ liệu — cập nhật ảnh nếu cần.");
+            updateSeededTourImages();
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
@@ -100,7 +102,53 @@ public class DataInitializer implements CommandLineRunner {
 
         seedBookingsAndReviews(users, tours.fansipan(), dep10, dep5, dep6);
 
+        seedTourImages(tours.fansipan(), tours.taNang(), tours.mapiLeng(), users.admin().getId());
+
         log.info("[DataInitializer] Seed hoàn tất.");
+    }
+
+    private void seedTourImages(Tour fansipan, Tour taNang, Tour mapiLeng, java.util.UUID adminId) {
+        tourImageRepository.save(TourImage.builder()
+                .tour(fansipan)
+                .imageUrl("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80")
+                .caption("Bình minh trên đỉnh Fansipan")
+                .altText("Fansipan summit sunrise")
+                .isCover(true)
+                .sortOrder((short) 1)
+                .uploadedBy(adminId)
+                .build());
+
+        tourImageRepository.save(TourImage.builder()
+                .tour(fansipan)
+                .imageUrl("https://images.unsplash.com/photo-1623090857341-4078f1e0ee34?auto=format&fit=crop&w=1200&q=80")
+                .caption("Rừng nguyên sinh Hoàng Liên Sơn")
+                .altText("Hoang Lien Son forest")
+                .isCover(false)
+                .sortOrder((short) 2)
+                .uploadedBy(adminId)
+                .build());
+
+        tourImageRepository.save(TourImage.builder()
+                .tour(taNang)
+                .imageUrl("https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80")
+                .caption("Thảo nguyên Tà Năng Phan Dũng")
+                .altText("Ta Nang Phan Dung grasslands")
+                .isCover(true)
+                .sortOrder((short) 1)
+                .uploadedBy(adminId)
+                .build());
+
+        tourImageRepository.save(TourImage.builder()
+                .tour(mapiLeng)
+                .imageUrl("https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80")
+                .caption("Hùng vĩ Mã Pí Lèng Hà Giang")
+                .altText("Ma Pi Leng pass")
+                .isCover(true)
+                .sortOrder((short) 1)
+                .uploadedBy(adminId)
+                .build());
+
+        log.info("[Seed] Tour images created.");
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -605,6 +653,31 @@ public class DataInitializer implements CommandLineRunner {
                 .itinerary(itinerary).waypoint(waypoint)
                 .visitOrder((short) order).isMandatory(mandatory)
                 .visitNotes(notes).estimatedArrival(LocalTime.parse(arrival)).build());
+    }
+
+    private void updateSeededTourImages() {
+        try {
+            tourImageRepository.findAll().forEach(img -> {
+                if (img.getAltText() != null) {
+                    if (img.getAltText().equals("Fansipan summit sunrise")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    } else if (img.getAltText().equals("Hoang Lien Son forest")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1623090857341-4078f1e0ee34?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    } else if (img.getAltText().equals("Ta Nang Phan Dung grasslands")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    } else if (img.getAltText().equals("Ma Pi Leng pass")) {
+                        img.setImageUrl("https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80");
+                        tourImageRepository.save(img);
+                    }
+                }
+            });
+            log.info("[DataInitializer] Đã cập nhật ảnh đẹp cho các địa điểm.");
+        } catch (Exception e) {
+            log.error("[DataInitializer] Lỗi khi cập nhật ảnh đẹp: {}", e.getMessage());
+        }
     }
 }
 
