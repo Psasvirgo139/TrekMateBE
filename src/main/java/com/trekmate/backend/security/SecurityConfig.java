@@ -52,12 +52,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/locations/**").hasAnyRole("GUIDE", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/tour-attributes/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/tour-attributes/**").hasAnyRole("GUIDE", "ADMIN")
-                        .requestMatchers("/v1/payments/**").authenticated()
-                        .requestMatchers("/v1/bookings/**").authenticated()
+                        .requestMatchers("/v1/payments/**", "/api/v1/payments/**").authenticated()
+                        .requestMatchers("/v1/bookings/**", "/api/v1/bookings/**").authenticated()
                         .requestMatchers("/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/admin/tours/**").hasAnyRole("GUIDE", "ADMIN")
                         .requestMatchers("/admin/tour-guides/**").hasAnyRole("GUIDE", "ADMIN")
                         .requestMatchers("/admin/equipment/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/tours/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/reviews/tour/**").permitAll()
+                        .requestMatchers("/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/v1/payments/payos/confirm/**", "/api/v1/payments/payos/confirm/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -67,7 +71,7 @@ public class SecurityConfig {
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+                configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:5173", "http://localhost:5174"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                 configuration.setAllowedHeaders(Arrays.asList("authorization", "content-type", "x-auth-token"));
                 configuration.setExposedHeaders(Arrays.asList("x-auth-token"));
