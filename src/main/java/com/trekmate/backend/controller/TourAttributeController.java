@@ -42,20 +42,24 @@ public class TourAttributeController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Thêm thuộc tính tour mới", description = "Lưu thuộc tính mới (highlights, includes, excludes, requirements) vào Database.")
-    public ResponseEntity<TourAttribute> createTourAttribute(@Valid @RequestBody TourAttributeRequest request) {
+    public ApiResponse<TourAttribute> createTourAttribute(@Valid @RequestBody TourAttributeRequest request) {
         log.info("REST request to create tour attribute: {}", request);
         
-        // Tránh trùng lặp: nếu đã tồn tại, trả về bản ghi hiện tại
-        return tourAttributeRepository.findByTypeAndContentIgnoreCase(request.type(), request.content().trim())
-                .map(ResponseEntity::ok)
+        TourAttribute data = tourAttributeRepository.findByTypeAndContentIgnoreCase(request.type(), request.content().trim())
                 .orElseGet(() -> {
                     TourAttribute newAttr = TourAttribute.builder()
                             .content(request.content().trim())
                             .type(request.type())
                             .build();
-                    TourAttribute saved = tourAttributeRepository.save(newAttr);
-                    return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+                    return tourAttributeRepository.save(newAttr);
                 });
+
+        return ApiResponse.<TourAttribute>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Tour attribute processed successfully")
+                .data(data)
+                .build();
     }
 }

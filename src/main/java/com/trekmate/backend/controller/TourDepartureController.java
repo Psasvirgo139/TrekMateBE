@@ -45,33 +45,33 @@ public class TourDepartureController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tạo một lịch khởi hành đơn lẻ", description = "Tạo một chuyến đi cụ thể cho tour vào ngày được chỉ định. Ngày về và hạn đặt chỗ tự động tính nếu không truyền.")
-    public ResponseEntity<ApiResponse<DepartureCardResponse>> createDeparture(
+    public ApiResponse<DepartureCardResponse> createDeparture(
             @PathVariable UUID tourId,
             @Valid @RequestBody TourDepartureRequest request) {
         log.info("REST [ADMIN] create single departure for tour ID: {} on date: {}", tourId, request.departureDate());
         DepartureCardResponse data = departureService.createDeparture(tourId, request);
-        ApiResponse<DepartureCardResponse> response = ApiResponse.<DepartureCardResponse>builder()
+        return ApiResponse.<DepartureCardResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Tạo lịch khởi hành thành công")
                 .data(data)
                 .build();
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tự động sinh lịch khởi hành lặp lại hàng loạt", description = "Sinh hàng loạt lịch khởi hành từ ngày bắt đầu đến ngày kết thúc theo các ngày trong tuần được chọn. Bỏ qua các ngày đã có lịch trùng.")
-    public ResponseEntity<ApiResponse<List<DepartureCardResponse>>> generateBulkDepartures(
+    public ApiResponse<List<DepartureCardResponse>> generateBulkDepartures(
             @PathVariable UUID tourId,
             @Valid @RequestBody BulkDepartureRequest request) {
         log.info("REST [ADMIN] generate bulk departures for tour ID: {} from {} to {}", tourId, request.startDate(), request.endDate());
         List<DepartureCardResponse> data = departureService.generateBulkDepartures(tourId, request);
-        ApiResponse<List<DepartureCardResponse>> response = ApiResponse.<List<DepartureCardResponse>>builder()
+        return ApiResponse.<List<DepartureCardResponse>>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Tạo hàng loạt lịch khởi hành thành công")
                 .data(data)
                 .build();
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{departureId}")

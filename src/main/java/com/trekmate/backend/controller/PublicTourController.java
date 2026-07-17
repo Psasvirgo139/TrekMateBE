@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -76,10 +75,14 @@ public class PublicTourController {
 
     @GetMapping("/{idOrSlug}")
     @Operation(summary = "Lấy chi tiết tour", description = "Lấy chi tiết tour (kèm waypoints, daily itineraries, images) qua UUID hoặc slug")
-    public ResponseEntity<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
+    public ApiResponse<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
         log.info("REST request to get tour detail: {}", idOrSlug);
         TourDetailResponse dto = tourService.getTourByIdOrSlug(idOrSlug);
-        return ResponseEntity.ok(dto);
+        return ApiResponse.<TourDetailResponse>builder()
+                .code(200)
+                .message("Lấy chi tiết tour thành công")
+                .data(dto)
+                .build();
     }
 
     // ────────────────────────────────────────────────────────────────────────────

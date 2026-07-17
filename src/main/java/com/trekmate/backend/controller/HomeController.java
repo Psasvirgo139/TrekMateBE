@@ -1,11 +1,11 @@
 package com.trekmate.backend.controller;
 
+import com.trekmate.backend.dto.response.ApiResponse;
 import com.trekmate.backend.dto.response.HomeResponse;
 import com.trekmate.backend.service.HomeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +24,12 @@ public class HomeController {
             description = "Trả về thống kê tổng quan, danh sách tour nổi bật, " +
                           "lịch khởi hành sắp tới và top HDV."
     )
-    public ResponseEntity<HomeResponse> getHome() {
-        return ResponseEntity.ok(homeService.getHomeData());
+    public ApiResponse<HomeResponse> getHome() {
+        HomeResponse data = homeService.getHomeData();
+        return ApiResponse.<HomeResponse>builder()
+                .code(200)
+                .message("Get home data successfully")
+                .data(data)
+                .build();
     }
 }

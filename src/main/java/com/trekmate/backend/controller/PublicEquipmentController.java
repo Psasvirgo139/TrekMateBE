@@ -1,5 +1,6 @@
 package com.trekmate.backend.controller;
 
+import com.trekmate.backend.dto.response.ApiResponse;
 import com.trekmate.backend.dto.response.EquipmentCategoryResponse;
 import com.trekmate.backend.dto.response.EquipmentResponse;
 import com.trekmate.backend.service.EquipmentService;
@@ -7,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,18 +27,27 @@ public class PublicEquipmentController {
     @GetMapping
     @Operation(summary = "List active rental equipment (public)",
                description = "Returns a paginated list of active equipment available for rental. Used by tour booking page.")
-    public ResponseEntity<Page<EquipmentResponse>> getAvailableEquipments(
+    public ApiResponse<Page<EquipmentResponse>> getAvailableEquipments(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         // Always filter by isActive=true for public access
-        return ResponseEntity.ok(equipmentService.getEquipments(categoryId, true, page, size));
+        Page<EquipmentResponse> data = equipmentService.getEquipments(categoryId, true, page, size);
+        return ApiResponse.<Page<EquipmentResponse>>builder()
+                .code(200)
+                .message("Get active equipments successfully")
+                .data(data)
+                .build();
     }
 
     @GetMapping("/categories")
     @Operation(summary = "List equipment categories (public)",
                description = "Returns all equipment categories for filtering rental equipment.")
-    public ResponseEntity<List<EquipmentCategoryResponse>> getCategories() {
-        return ResponseEntity.ok(equipmentService.getCategories());
+    public ApiResponse<List<EquipmentCategoryResponse>> getCategories() {
+        return ApiResponse.<List<EquipmentCategoryResponse>>builder()
+                .code(200)
+                .message("Get equipment categories successfully")
+                .data(equipmentService.getCategories())
+                .build();
     }
 }

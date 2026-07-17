@@ -2,6 +2,7 @@ package com.trekmate.backend.controller;
 
 import com.trekmate.backend.dto.request.GuideReplyRequest;
 import com.trekmate.backend.dto.request.ReviewRequest;
+import com.trekmate.backend.dto.response.ApiResponse;
 import com.trekmate.backend.dto.response.ReviewResponse;
 import com.trekmate.backend.dto.response.ReviewSummaryResponse;
 import com.trekmate.backend.security.AuthUserDetails;
@@ -33,67 +34,102 @@ public class ReviewController {
 
     @GetMapping("/tour/{tourId}")
     @Operation(summary = "Get paginated reviews for a tour (approved only)")
-    public ResponseEntity<Page<ReviewResponse>> getReviewsByTour(
+    public ApiResponse<Page<ReviewResponse>> getReviewsByTour(
             @PathVariable UUID tourId,
             @AuthenticationPrincipal AuthUserDetails principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String sortBy) {
         UUID currentUserId = principal != null ? principal.getUserId() : null;
-        return ResponseEntity.ok(reviewService.getReviewsByTour(tourId, currentUserId, page, size, sortBy));
+        Page<ReviewResponse> data = reviewService.getReviewsByTour(tourId, currentUserId, page, size, sortBy);
+        return ApiResponse.<Page<ReviewResponse>>builder()
+                .code(200)
+                .message("Get reviews successfully")
+                .data(data)
+                .build();
     }
 
     @GetMapping("/tour/{tourId}/summary")
     @Operation(summary = "Get review summary (avg ratings + distribution) for a tour")
-    public ResponseEntity<ReviewSummaryResponse> getReviewSummary(@PathVariable UUID tourId) {
-        return ResponseEntity.ok(reviewService.getReviewSummary(tourId));
+    public ApiResponse<ReviewSummaryResponse> getReviewSummary(@PathVariable UUID tourId) {
+        ReviewSummaryResponse data = reviewService.getReviewSummary(tourId);
+        return ApiResponse.<ReviewSummaryResponse>builder()
+                .code(200)
+                .message("Get review summary successfully")
+                .data(data)
+                .build();
     }
 
     // ─── Authenticated Endpoints ──────────────────────────────────────────────
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new review for a completed booking")
-    public ResponseEntity<ReviewResponse> createReview(
+    public ApiResponse<ReviewResponse> createReview(
             @AuthenticationPrincipal AuthUserDetails principal,
             @Valid @RequestBody ReviewRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(reviewService.createReview(principal.getUserId(), request));
+        ReviewResponse data = reviewService.createReview(principal.getUserId(), request);
+        return ApiResponse.<ReviewResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Review created successfully")
+                .data(data)
+                .build();
     }
 
     @GetMapping("/my")
     @Operation(summary = "Get my reviews (paginated)")
-    public ResponseEntity<Page<ReviewResponse>> getMyReviews(
+    public ApiResponse<Page<ReviewResponse>> getMyReviews(
             @AuthenticationPrincipal AuthUserDetails principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(reviewService.getReviewsByUser(principal.getUserId(), page, size));
+        Page<ReviewResponse> data = reviewService.getReviewsByUser(principal.getUserId(), page, size);
+        return ApiResponse.<Page<ReviewResponse>>builder()
+                .code(200)
+                .message("Get my reviews successfully")
+                .data(data)
+                .build();
     }
 
     @PostMapping("/{id}/helpful")
     @Operation(summary = "Toggle helpful vote on a review")
-    public ResponseEntity<ReviewResponse> toggleHelpful(
+    public ApiResponse<ReviewResponse> toggleHelpful(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthUserDetails principal) {
-        return ResponseEntity.ok(reviewService.toggleHelpful(id, principal.getUserId()));
+        ReviewResponse data = reviewService.toggleHelpful(id, principal.getUserId());
+        return ApiResponse.<ReviewResponse>builder()
+                .code(200)
+                .message("Vote toggled successfully")
+                .data(data)
+                .build();
     }
 
     // ─── Guide Endpoints ──────────────────────────────────────────────────────
 
     @PatchMapping("/{id}/reply")
     @Operation(summary = "Guide replies to a review")
-    public ResponseEntity<ReviewResponse> replyToReview(
+    public ApiResponse<ReviewResponse> replyToReview(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthUserDetails principal,
             @Valid @RequestBody GuideReplyRequest request) {
-        return ResponseEntity.ok(reviewService.replyToReview(id, principal.getUserId(), request));
+        ReviewResponse data = reviewService.replyToReview(id, principal.getUserId(), request);
+        return ApiResponse.<ReviewResponse>builder()
+                .code(200)
+                .message("Guide reply added successfully")
+                .data(data)
+                .build();
     }
 
     // ─── Admin Endpoints ──────────────────────────────────────────────────────
 
     @PatchMapping("/{id}/approve")
     @Operation(summary = "Admin approves a review")
-    public ResponseEntity<ReviewResponse> approveReview(@PathVariable Long id) {
-        return ResponseEntity.ok(reviewService.approveReview(id));
+    public ApiResponse<ReviewResponse> approveReview(@PathVariable Long id) {
+        ReviewResponse data = reviewService.approveReview(id);
+        return ApiResponse.<ReviewResponse>builder()
+                .code(200)
+                .message("Review approved successfully")
+                .data(data)
+                .build();
     }
 
     @DeleteMapping("/{id}")

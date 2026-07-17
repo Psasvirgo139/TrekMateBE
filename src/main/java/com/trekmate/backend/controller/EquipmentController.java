@@ -3,6 +3,7 @@ package com.trekmate.backend.controller;
 import com.trekmate.backend.dto.request.EquipmentCategoryRequest;
 import com.trekmate.backend.dto.request.EquipmentRequest;
 import com.trekmate.backend.dto.request.ReturnEquipmentRequest;
+import com.trekmate.backend.dto.response.ApiResponse;
 import com.trekmate.backend.dto.response.EquipmentCategoryResponse;
 import com.trekmate.backend.dto.response.EquipmentRentalResponse;
 import com.trekmate.backend.dto.response.EquipmentResponse;
@@ -34,23 +35,36 @@ public class EquipmentController {
 
     @GetMapping("/categories")
     @Operation(summary = "List all equipment categories")
-    public ResponseEntity<List<EquipmentCategoryResponse>> getCategories() {
-        return ResponseEntity.ok(equipmentService.getCategories());
+    public ApiResponse<List<EquipmentCategoryResponse>> getCategories() {
+        return ApiResponse.<List<EquipmentCategoryResponse>>builder()
+                .code(200)
+                .message("List categories successfully")
+                .data(equipmentService.getCategories())
+                .build();
     }
 
     @PostMapping("/categories")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new category")
-    public ResponseEntity<EquipmentCategoryResponse> createCategory(
+    public ApiResponse<EquipmentCategoryResponse> createCategory(
             @Valid @RequestBody EquipmentCategoryRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(equipmentService.createCategory(request));
+        return ApiResponse.<EquipmentCategoryResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Category created successfully")
+                .data(equipmentService.createCategory(request))
+                .build();
     }
 
     @PutMapping("/categories/{id}")
     @Operation(summary = "Update an equipment category")
-    public ResponseEntity<EquipmentCategoryResponse> updateCategory(
+    public ApiResponse<EquipmentCategoryResponse> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody EquipmentCategoryRequest request) {
-        return ResponseEntity.ok(equipmentService.updateCategory(id, request));
+        return ApiResponse.<EquipmentCategoryResponse>builder()
+                .code(200)
+                .message("Category updated successfully")
+                .data(equipmentService.updateCategory(id, request))
+                .build();
     }
 
     @DeleteMapping("/categories/{id}")
@@ -64,39 +78,60 @@ public class EquipmentController {
 
     @GetMapping
     @Operation(summary = "Paginated equipment list, filter by categoryId and/or isActive")
-    public ResponseEntity<Page<EquipmentResponse>> getEquipments(
+    public ApiResponse<Page<EquipmentResponse>> getEquipments(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(equipmentService.getEquipments(categoryId, isActive, page, size));
+        return ApiResponse.<Page<EquipmentResponse>>builder()
+                .code(200)
+                .message("Get equipments successfully")
+                .data(equipmentService.getEquipments(categoryId, isActive, page, size))
+                .build();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get equipment by id")
-    public ResponseEntity<EquipmentResponse> getEquipment(@PathVariable Long id) {
-        return ResponseEntity.ok(equipmentService.getEquipment(id));
+    public ApiResponse<EquipmentResponse> getEquipment(@PathVariable Long id) {
+        return ApiResponse.<EquipmentResponse>builder()
+                .code(200)
+                .message("Get equipment details successfully")
+                .data(equipmentService.getEquipment(id))
+                .build();
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create new equipment")
-    public ResponseEntity<EquipmentResponse> createEquipment(
+    public ApiResponse<EquipmentResponse> createEquipment(
             @Valid @RequestBody EquipmentRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(equipmentService.createEquipment(request));
+        return ApiResponse.<EquipmentResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Equipment created successfully")
+                .data(equipmentService.createEquipment(request))
+                .build();
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update equipment")
-    public ResponseEntity<EquipmentResponse> updateEquipment(
+    public ApiResponse<EquipmentResponse> updateEquipment(
             @PathVariable Long id,
             @Valid @RequestBody EquipmentRequest request) {
-        return ResponseEntity.ok(equipmentService.updateEquipment(id, request));
+        return ApiResponse.<EquipmentResponse>builder()
+                .code(200)
+                .message("Equipment updated successfully")
+                .data(equipmentService.updateEquipment(id, request))
+                .build();
     }
 
     @PatchMapping("/{id}/toggle")
     @Operation(summary = "Toggle equipment active/inactive")
-    public ResponseEntity<EquipmentResponse> toggleActive(@PathVariable Long id) {
-        return ResponseEntity.ok(equipmentService.toggleActive(id));
+    public ApiResponse<EquipmentResponse> toggleActive(@PathVariable Long id) {
+        return ApiResponse.<EquipmentResponse>builder()
+                .code(200)
+                .message("Equipment status toggled successfully")
+                .data(equipmentService.toggleActive(id))
+                .build();
     }
 
     @DeleteMapping("/{id}")
@@ -110,26 +145,38 @@ public class EquipmentController {
 
     @GetMapping("/{id}/rentals")
     @Operation(summary = "List rentals for a specific equipment")
-    public ResponseEntity<Page<EquipmentRentalResponse>> getRentals(
+    public ApiResponse<Page<EquipmentRentalResponse>> getRentals(
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(equipmentService.getRentals(id, page, size));
+        return ApiResponse.<Page<EquipmentRentalResponse>>builder()
+                .code(200)
+                .message("Get rentals successfully")
+                .data(equipmentService.getRentals(id, page, size))
+                .build();
     }
 
     @GetMapping("/rentals")
     @Operation(summary = "List all rentals (paginated)")
-    public ResponseEntity<Page<EquipmentRentalResponse>> getAllRentals(
+    public ApiResponse<Page<EquipmentRentalResponse>> getAllRentals(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(equipmentService.getRentals(null, page, size));
+        return ApiResponse.<Page<EquipmentRentalResponse>>builder()
+                .code(200)
+                .message("Get all rentals successfully")
+                .data(equipmentService.getRentals(null, page, size))
+                .build();
     }
 
     @PatchMapping("/rentals/{rentalId}/return")
     @Operation(summary = "Mark a rental as returned")
-    public ResponseEntity<EquipmentRentalResponse> returnEquipment(
+    public ApiResponse<EquipmentRentalResponse> returnEquipment(
             @PathVariable Long rentalId,
             @Valid @RequestBody ReturnEquipmentRequest request) {
-        return ResponseEntity.ok(equipmentService.returnEquipment(rentalId, request));
+        return ApiResponse.<EquipmentRentalResponse>builder()
+                .code(200)
+                .message("Equipment returned successfully")
+                .data(equipmentService.returnEquipment(rentalId, request))
+                .build();
     }
 }

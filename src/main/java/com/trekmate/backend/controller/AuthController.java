@@ -6,6 +6,7 @@ import com.trekmate.backend.dto.request.LoginRequest;
 import com.trekmate.backend.dto.request.RegisterRequest;
 import com.trekmate.backend.dto.request.ResetPasswordRequest;
 import com.trekmate.backend.dto.request.VerifyOtpRequest;
+import com.trekmate.backend.dto.response.ApiResponse;
 import com.trekmate.backend.dto.response.AuthResponse;
 import com.trekmate.backend.dto.response.AuthUserResponse;
 import com.trekmate.backend.dto.response.MessageResponse;
@@ -16,11 +17,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,43 +34,79 @@ public class AuthController {
 
     @PostMapping("/register/request-otp")
     @Operation(summary = "Send email OTP for registration")
-    public ResponseEntity<SendOtpResponse> requestRegistrationOtp(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.requestRegistrationOtp(request));
+    public ApiResponse<SendOtpResponse> requestRegistrationOtp(@Valid @RequestBody RegisterRequest request) {
+        SendOtpResponse data = authService.requestRegistrationOtp(request);
+        return ApiResponse.<SendOtpResponse>builder()
+                .code(200)
+                .message("OTP requested successfully")
+                .data(data)
+                .build();
     }
 
     @PostMapping("/register/verify")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Verify OTP and complete registration")
-    public ResponseEntity<AuthResponse> verifyRegistration(@Valid @RequestBody VerifyOtpRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.verifyRegistration(request));
+    public ApiResponse<AuthResponse> verifyRegistration(@Valid @RequestBody VerifyOtpRequest request) {
+        AuthResponse data = authService.verifyRegistration(request);
+        return ApiResponse.<AuthResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Verification successful")
+                .data(data)
+                .build();
     }
 
     @PostMapping("/login")
     @Operation(summary = "Login with email and password")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse data = authService.login(request);
+        return ApiResponse.<AuthResponse>builder()
+                .code(200)
+                .message("Login successful")
+                .data(data)
+                .build();
     }
 
     @PostMapping("/google")
     @Operation(summary = "Login or register with Google ID token")
-    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
-        return ResponseEntity.ok(authService.googleLogin(request));
+    public ApiResponse<AuthResponse> googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
+        AuthResponse data = authService.googleLogin(request);
+        return ApiResponse.<AuthResponse>builder()
+                .code(200)
+                .message("Google login successful")
+                .data(data)
+                .build();
     }
 
     @PostMapping("/forgot-password")
     @Operation(summary = "Send password reset OTP")
-    public ResponseEntity<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        return ResponseEntity.ok(authService.forgotPassword(request));
+    public ApiResponse<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        MessageResponse data = authService.forgotPassword(request);
+        return ApiResponse.<MessageResponse>builder()
+                .code(200)
+                .message("Password reset OTP sent successfully")
+                .data(data)
+                .build();
     }
 
     @PostMapping("/reset-password")
     @Operation(summary = "Reset password with OTP")
-    public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(authService.resetPassword(request));
+    public ApiResponse<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        MessageResponse data = authService.resetPassword(request);
+        return ApiResponse.<MessageResponse>builder()
+                .code(200)
+                .message("Password reset successfully")
+                .data(data)
+                .build();
     }
 
     @GetMapping("/me")
     @Operation(summary = "Get the currently authenticated user")
-    public ResponseEntity<AuthUserResponse> me() {
-        return ResponseEntity.ok(authService.getCurrentUser());
+    public ApiResponse<AuthUserResponse> me() {
+        AuthUserResponse data = authService.getCurrentUser();
+        return ApiResponse.<AuthUserResponse>builder()
+                .code(200)
+                .message("Get current user successfully")
+                .data(data)
+                .build();
     }
 }

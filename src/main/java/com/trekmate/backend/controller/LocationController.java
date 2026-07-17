@@ -39,23 +39,26 @@ public class LocationController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Thêm địa điểm mới", description = "Lưu địa điểm mới vào Database.")
-    public ResponseEntity<Location> createLocation(@Valid @RequestBody LocationRequest request) {
+    public ApiResponse<Location> createLocation(@Valid @RequestBody LocationRequest request) {
         log.info("REST request to create location: {}", request);
         
-        // Kiểm tra xem địa điểm đã tồn tại chưa (không phân biệt chữ hoa thường)
-        // Nếu đã tồn tại, trả về địa điểm đó để tránh duplicate và lỗi constraint
-        return locationRepository.searchByName(request.name().trim()).stream()
+        Location data = locationRepository.searchByName(request.name().trim()).stream()
                 .filter(l -> l.getName().equalsIgnoreCase(request.name().trim()))
                 .findFirst()
-                .map(ResponseEntity::ok)
                 .orElseGet(() -> {
                     Location location = Location.builder()
                             .name(request.name().trim())
                             .description(request.description())
                             .build();
-                    Location saved = locationRepository.save(location);
-                    return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+                    return locationRepository.save(location);
                 });
+
+        return ApiResponse.<Location>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Location processed successfully")
+                .data(data)
+                .build();
     }
 }

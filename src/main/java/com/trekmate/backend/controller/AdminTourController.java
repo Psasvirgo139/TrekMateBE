@@ -67,32 +67,51 @@ public class AdminTourController {
 
     @GetMapping("/{idOrSlug}")
     @Operation(summary = "Lấy chi tiết tour (admin)", description = "Lấy chi tiết tour qua UUID hoặc slug. Dành cho trang chỉnh sửa tour của admin/guide.")
-    public ResponseEntity<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
+    public ApiResponse<TourDetailResponse> getTourByIdOrSlug(@PathVariable String idOrSlug) {
         log.info("REST [ADMIN] request to get tour detail: {}", idOrSlug);
         TourDetailResponse dto = tourService.getTourByIdOrSlug(idOrSlug);
-        return ResponseEntity.ok(dto);
+        return ApiResponse.<TourDetailResponse>builder()
+                .code(200)
+                .message("Lấy chi tiết tour thành công")
+                .data(dto)
+                .build();
     }
 
     @GetMapping("/{id}/clone-source")
     @Operation(summary = "Lấy dữ liệu nguồn để nhân bản tour", description = "Trả về chi tiết tour nhưng xóa các trường ID, slug, rating và đánh giá để chuẩn bị cho việc tạo mới pre-fill.")
-    public ResponseEntity<TourDetailResponse> getTourForClone(@PathVariable UUID id) {
+    public ApiResponse<TourDetailResponse> getTourForClone(@PathVariable UUID id) {
         log.info("REST request to get tour clone source: {}", id);
         TourDetailResponse dto = tourService.getTourForClone(id);
-        return ResponseEntity.ok(dto);
+        return ApiResponse.<TourDetailResponse>builder()
+                .code(200)
+                .message("Lấy dữ liệu nhân bản thành công")
+                .data(dto)
+                .build();
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tạo tour mới", description = "Tạo một tour mới. Slug sẽ tự động được tạo từ title nếu để trống.")
-    public ResponseEntity<TourDetailResponse> createTour(@Valid @RequestBody TourRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(tourService.createTour(request));
+    public ApiResponse<TourDetailResponse> createTour(@Valid @RequestBody TourRequest request) {
+        TourDetailResponse dto = tourService.createTour(request);
+        return ApiResponse.<TourDetailResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Tạo tour thành công")
+                .data(dto)
+                .build();
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật tour", description = "Cập nhật thông tin chi tiết cơ bản của một tour.")
-    public ResponseEntity<TourDetailResponse> updateTour(
+    public ApiResponse<TourDetailResponse> updateTour(
             @PathVariable UUID id,
             @Valid @RequestBody TourRequest request) {
-        return ResponseEntity.ok(tourService.updateTour(id, request));
+        TourDetailResponse dto = tourService.updateTour(id, request);
+        return ApiResponse.<TourDetailResponse>builder()
+                .code(200)
+                .message("Cập nhật tour thành công")
+                .data(dto)
+                .build();
     }
 
     @DeleteMapping("/{id}")
@@ -107,20 +126,31 @@ public class AdminTourController {
     // ────────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/{tourId}/waypoints")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Thêm waypoint mới", description = "Thêm điểm mốc (waypoint) mới cho tour.")
-    public ResponseEntity<TourWaypointResponse> addWaypoint(
+    public ApiResponse<TourWaypointResponse> addWaypoint(
             @PathVariable UUID tourId,
             @Valid @RequestBody TourWaypointRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(tourService.addWaypoint(tourId, request));
+        TourWaypointResponse dto = tourService.addWaypoint(tourId, request);
+        return ApiResponse.<TourWaypointResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Thêm waypoint thành công")
+                .data(dto)
+                .build();
     }
 
     @PutMapping("/{tourId}/waypoints/{waypointId}")
     @Operation(summary = "Cập nhật waypoint", description = "Cập nhật thông tin điểm mốc trong tour.")
-    public ResponseEntity<TourWaypointResponse> updateWaypoint(
+    public ApiResponse<TourWaypointResponse> updateWaypoint(
             @PathVariable UUID tourId,
             @PathVariable UUID waypointId,
             @Valid @RequestBody TourWaypointRequest request) {
-        return ResponseEntity.ok(tourService.updateWaypoint(tourId, waypointId, request));
+        TourWaypointResponse dto = tourService.updateWaypoint(tourId, waypointId, request);
+        return ApiResponse.<TourWaypointResponse>builder()
+                .code(200)
+                .message("Cập nhật waypoint thành công")
+                .data(dto)
+                .build();
     }
 
     @DeleteMapping("/{tourId}/waypoints/{waypointId}")
@@ -138,10 +168,15 @@ public class AdminTourController {
 
     @PostMapping("/{tourId}/itineraries")
     @Operation(summary = "Thêm hoặc Cập nhật lịch trình ngày", description = "Thêm lịch trình cho ngày mới hoặc cập nhật ngày đã có dựa trên day_number.")
-    public ResponseEntity<TourDailyItineraryResponse> addOrUpdateDailyItinerary(
+    public ApiResponse<TourDailyItineraryResponse> addOrUpdateDailyItinerary(
             @PathVariable UUID tourId,
             @Valid @RequestBody TourDailyItineraryRequest request) {
-        return ResponseEntity.ok(tourService.addOrUpdateDailyItinerary(tourId, request));
+        TourDailyItineraryResponse dto = tourService.addOrUpdateDailyItinerary(tourId, request);
+        return ApiResponse.<TourDailyItineraryResponse>builder()
+                .code(200)
+                .message("Cập nhật lịch trình thành công")
+                .data(dto)
+                .build();
     }
 
     @DeleteMapping("/{tourId}/itineraries/{itineraryId}")
@@ -158,11 +193,17 @@ public class AdminTourController {
     // ────────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/{tourId}/images")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Thêm ảnh cho tour", description = "Thêm ảnh mới vào bộ sưu tập hình ảnh của tour.")
-    public ResponseEntity<TourImageResponse> addTourImage(
+    public ApiResponse<TourImageResponse> addTourImage(
             @PathVariable UUID tourId,
             @Valid @RequestBody TourImageRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(tourService.addTourImage(tourId, request));
+        TourImageResponse dto = tourService.addTourImage(tourId, request);
+        return ApiResponse.<TourImageResponse>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("Thêm ảnh thành công")
+                .data(dto)
+                .build();
     }
 
     @DeleteMapping("/{tourId}/images/{imageId}")
