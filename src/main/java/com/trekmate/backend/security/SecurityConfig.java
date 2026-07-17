@@ -47,7 +47,6 @@ public class SecurityConfig {
                                 "/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
                         .requestMatchers("/home/**").permitAll()
-                        .requestMatchers("/api/tours/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/locations/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/locations/**").hasAnyRole("GUIDE", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/tour-attributes/**").permitAll()
