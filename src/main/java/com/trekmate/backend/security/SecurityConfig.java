@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/admin/tours/**").hasAnyRole("GUIDE", "ADMIN")
                         .requestMatchers("/admin/tour-guides/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/v1/rental/equipments/**").permitAll()
                         .requestMatchers("/admin/equipment/**").hasAnyRole("GUIDE", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/tours/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/reviews/tour/**").permitAll()

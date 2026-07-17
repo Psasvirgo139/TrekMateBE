@@ -236,16 +236,18 @@ public class TourController {
                 .map(d -> {
                     int availableSlots = (d.getMaxGroupSize() == null ? 0 : d.getMaxGroupSize())
                             - (d.getBookedSlots() == null ? 0 : d.getBookedSlots());
-                    return Map.<String, Object>of(
-                            "id",             d.getId().toString(),
-                            "departureDate",  d.getDepartureDate().toString(),
-                            "returnDate",     d.getReturnDate() != null ? d.getReturnDate().toString() : "",
-                            "cutoffDate",     d.getCutoffDate() != null ? d.getCutoffDate().toString() : "",
-                            "pricePerPerson", d.getPricePerPerson() != null ? d.getPricePerPerson() : BigDecimal.ZERO,
-                            "availableSlots", availableSlots,
-                            "meetingPoint",   d.getMeetingPoint() != null ? d.getMeetingPoint() : "",
-                            "allowJoinTour",  d.getAllowJoinTour() != null && d.getAllowJoinTour()
-                    );
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id",             d.getId().toString());
+                    m.put("departureId",    d.getId().toString());
+                    m.put("departureDate",  d.getDepartureDate().toString());
+                    m.put("returnDate",     d.getReturnDate() != null ? d.getReturnDate().toString() : "");
+                    m.put("cutoffDate",     d.getCutoffDate() != null ? d.getCutoffDate().toString() : "");
+                    m.put("pricePerPerson", d.getPricePerPerson() != null ? d.getPricePerPerson() : BigDecimal.ZERO);
+                    m.put("availableSlots", availableSlots);
+                    m.put("meetingPoint",   d.getMeetingPoint() != null ? d.getMeetingPoint() : "");
+                    m.put("allowJoinTour",  d.getAllowJoinTour() != null && d.getAllowJoinTour());
+                    m.put("status",         d.getStatus() != null ? d.getStatus().toString() : "");
+                    return m;
                 })
                 .collect(Collectors.toList());
 

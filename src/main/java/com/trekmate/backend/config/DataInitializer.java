@@ -111,6 +111,26 @@ public class DataInitializer implements CommandLineRunner {
 
         if (userRepository.count() > 0) {
             log.info("[DataInitializer] Database đã có dữ liệu — bỏ qua seed.");
+            // Tự động seed equipment nếu bị trống dữ liệu thiết bị
+            if (equipmentRepository.count() == 0) {
+                log.info("[DataInitializer] Phát hiện bảng equipment trống — tự động seed equipment cho các category hiện có...");
+                List<EquipmentCategory> categories = equipmentCategoryRepository.findAll();
+                for (EquipmentCategory cat : categories) {
+                    equipmentRepository.save(Equipment.builder()
+                            .category(cat)
+                            .name("Trang thiết bị " + cat.getName() + " cao cấp")
+                            .description("Mô tả cho trang thiết bị " + cat.getName())
+                            .brand("Naturehike")
+                            .model("NH20ZP015")
+                            .pricePerDay(new BigDecimal("50000"))
+                            .depositAmount(new BigDecimal("200000"))
+                            .totalStock((short) 50)
+                            .availableStock((short) 50)
+                            .condition(EquipmentCondition.GOOD)
+                            .isActive(true)
+                            .build());
+                }
+            }
             // Seed tour image nếu cần          
             updateSeededTourImages();
             // Tự động dịch chuyển các ngày khởi hành cũ trong quá khứ lên tương lai để dữ liệu demo luôn mới
@@ -134,6 +154,7 @@ public class DataInitializer implements CommandLineRunner {
             if (updatedAny) {
                 log.info("[DataInitializer] Đã cập nhật ngày của các đợt khởi hành cũ lên tương lai để test.");
             }
+            ensureFutureDeparturesForTours();
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
@@ -177,6 +198,7 @@ public class DataInitializer implements CommandLineRunner {
 
         seedTourImages(tours.fansipan(), tours.taNang(), tours.mapiLeng(), users.admin().getId());
 
+        ensureFutureDeparturesForTours();
         log.info("[DataInitializer] Seed hoàn tất.");
     }
 
@@ -809,6 +831,118 @@ public class DataInitializer implements CommandLineRunner {
             log.info("[DataInitializer] Đã cập nhật ảnh đẹp cho các địa điểm.");
         } catch (Exception e) {
             log.error("[DataInitializer] Lỗi khi cập nhật ảnh đẹp: {}", e.getMessage());
+        }
+    }
+
+    private void ensureFutureDeparturesForTours() {
+        log.info("[DataInitializer] Đang kiểm tra để đảm bảo mỗi tour có ít nhất 2 đợt khởi hành trong tương lai...");
+        List<Guide> guides = guideRepository.findAll();
+        if (guides.isEmpty()) {
+            log.warn("[DataInitializer] Không tìm thấy HDV nào trong database. Bỏ qua bổ sung ngày khởi hành.");
+            return;
+        }
+
+        List<Tour> tours = tourRepository.findAll();
+        List<TourDeparture> allDeps = departureRepository.findAll();
+        LocalDate today = LocalDate.now();
+
+        for (Tour tour : tours) {
+            // Count upcoming departures for this tour (OPEN or SCHEDULED and in the future)
+            long upcomingCount = allDeps.stream()
+                    .filter(d -> d.getTour().getId().equals(tour.getId()))
+                    .filter(d -> d.getDepartureDate() != null && d.getDepartureDate().isAfter(today))
+                    .filter(d -> d.getStatus() == DepartureStatus.OPEN || d.getStatus() == DepartureStatus.SCHEDULED)
+                    .count();
+
+            if (upcomingCount < 2) {
+                long needed = 2 - upcomingCount;
+                log.info("[DataInitializer] Tour '{}' ({}) chỉ có {} đợt khởi hành tương lai. Tiến hành bổ sung {} đợt...",
+                        tour.getTitle(), tour.getId(), upcomingCount, needed);
+
+                // Collect departures of this tour to copy settings
+                List<TourDeparture> tourDeps = allDeps.stream()
+                        .filter(d -> d.getTour().getId().equals(tour.getId()))
+                        .collect(java.util.stream.Collectors.toList());
+
+                BigDecimal price = new BigDecimal("2000000");
+                String meetingPoint = tour.getStartLocation() != null ? tour.getStartLocation() : "Điểm tập kết mặc định";
+                short maxGroup = 15;
+                short minGroup = 2;
+                boolean allowJoin = true;
+                String weatherSummary = "Nắng đẹp, thời tiết tốt";
+                String weatherIcon = "sunny";
+                short tempMin = 15;
+                short tempMax = 25;
+
+                if (!tourDeps.isEmpty()) {
+                    TourDeparture sample = tourDeps.get(0);
+                    if (sample.getPricePerPerson() != null) price = sample.getPricePerPerson();
+                    if (sample.getMeetingPoint() != null) meetingPoint = sample.getMeetingPoint();
+                    if (sample.getMaxGroupSize() != null) maxGroup = sample.getMaxGroupSize();
+                    if (sample.getMinGroupSize() != null) minGroup = sample.getMinGroupSize();
+                    allowJoin = sample.getAllowJoinTour() != null ? sample.getAllowJoinTour() : true;
+                    if (sample.getWeatherSummary() != null) weatherSummary = sample.getWeatherSummary();
+                    if (sample.getWeatherIcon() != null) weatherIcon = sample.getWeatherIcon();
+                    if (sample.getTempMinC() != null) tempMin = sample.getTempMinC();
+                    if (sample.getTempMaxC() != null) tempMax = sample.getTempMaxC();
+                }
+
+                // Determine guide to assign
+                Guide leadGuide = guides.get(0);
+                if (!tourDeps.isEmpty()) {
+                    for (TourDeparture td : tourDeps) {
+                        if (td.getGuideAssignments() != null && !td.getGuideAssignments().isEmpty()) {
+                            leadGuide = td.getGuideAssignments().get(0).getGuide();
+                            break;
+                        }
+                    }
+                }
+
+                int seeded = 0;
+                int daysOffset = 10;
+                while (seeded < needed && daysOffset < 150) {
+                    LocalDate candidateDate = today.plusDays(daysOffset);
+                    
+                    // Check if this date already exists for this tour
+                    boolean dateExists = departureRepository.findByTourIdAndDepartureDate(tour.getId(), candidateDate).isPresent();
+                    if (!dateExists) {
+                        int duration = tour.getDurationDays() != null && tour.getDurationDays() > 0 ? tour.getDurationDays() : 1;
+                        LocalDate returnDate = candidateDate.plusDays(duration - 1);
+                        LocalDate cutoffDate = candidateDate.minusDays(2);
+
+                        TourDeparture newDep = departureRepository.saveAndFlush(TourDeparture.builder()
+                                .tour(tour)
+                                .departureDate(candidateDate)
+                                .returnDate(returnDate)
+                                .cutoffDate(cutoffDate)
+                                .pricePerPerson(price)
+                                .maxGroupSize(maxGroup)
+                                .minGroupSize(minGroup)
+                                .bookedSlots((short) 0)
+                                .allowJoinTour(allowJoin)
+                                .meetingPoint(meetingPoint)
+                                .weatherSummary(weatherSummary)
+                                .weatherIcon(weatherIcon)
+                                .tempMinC(tempMin)
+                                .tempMaxC(tempMax)
+                                .weatherUpdatedAt(LocalDateTime.now())
+                                .status(DepartureStatus.OPEN)
+                                .build());
+
+                        departureGuideRepository.saveAndFlush(DepartureGuide.builder()
+                                .id(new DepartureGuideId(newDep.getId(), leadGuide.getId()))
+                                .departure(newDep)
+                                .guide(leadGuide)
+                                .role(GuideRoleInTour.LEAD)
+                                .confirmedAt(LocalDateTime.now())
+                                .build());
+
+                        log.info("[DataInitializer] Đã seed đợt khởi hành mới cho tour '{}': ngày {}", tour.getTitle(), candidateDate);
+                        seeded++;
+                    }
+                    daysOffset += 10;
+                }
+            }
         }
     }
 }
