@@ -37,6 +37,16 @@ public class BookingDetailResponse {
     private LocalDateTime paidAt;
     private LocalDateTime bookedAt;
 
+    // ── Departure UUID (dùng để gọi weather/AI API từ frontend) ──────────────
+    private java.util.UUID departureId;
+
+    // ── Dự báo thời tiết từ Open-Meteo ────────────────────────────────────────
+    private List<WeatherDayResponse> weatherForecast;
+    private String weatherOverallSummary;
+    private String weatherIcon;
+    private Short tempMinC;
+    private Short tempMaxC;
+
     private List<RentalDetail> rentals;
     private List<PaymentDetail> payments;
 
@@ -72,3 +82,4 @@ public class BookingDetailResponse {
         private LocalDateTime createdAt;
     }
 }
+

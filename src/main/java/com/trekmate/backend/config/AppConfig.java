@@ -3,27 +3,17 @@ package com.trekmate.backend.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
-
-import java.util.List;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @EnableJpaAuditing
 public class AppConfig {
 
+    /**
+     * RestTemplate dùng để gọi external APIs (Open-Meteo, Gemini).
+     */
     @Bean
-    public CorsFilter corsFilter() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setExposedHeaders(List.of("Authorization"));
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }

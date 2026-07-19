@@ -4,6 +4,7 @@ import com.trekmate.backend.dto.request.CancelBookingRequest;
 import com.trekmate.backend.dto.request.CreateBookingRequest;
 import com.trekmate.backend.dto.response.BookingDetailResponse;
 import com.trekmate.backend.dto.response.BookingHistoryResponse;
+import com.trekmate.backend.dto.response.WeatherDayResponse;
 import com.trekmate.backend.exception.AppException;
 import com.trekmate.backend.exception.ErrorCode;
 import com.trekmate.backend.model.Booking;
@@ -18,8 +19,10 @@ import com.trekmate.backend.repository.EquipmentRepository;
 import com.trekmate.backend.repository.TourDepartureRepository;
 import com.trekmate.backend.repository.UserRepository;
 import com.trekmate.backend.service.BookingService;
+import com.trekmate.backend.service.WeatherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,12 @@ public class BookingServiceImpl implements BookingService {
     private final TourDepartureRepository departureRepository;
     private final EquipmentRepository equipmentRepository;
     private final EquipmentRentalRepository equipmentRentalRepository;
+    // Dùng ApplicationContext để tránh circular dependency (WeatherService → BookingService có thể xảy ra)
+    private final ApplicationContext applicationContext;
+
+    private WeatherService getWeatherService() {
+        return applicationContext.getBean(WeatherService.class);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -314,15 +323,26 @@ public class BookingServiceImpl implements BookingService {
                         .build())
                 .toList();
 
+        // Fetch weather forecast (silent fail — không để lỗi weather phá vỡ booking response)
+        List<WeatherDayResponse> weatherForecast = List.of();
+        try {
+            weatherForecast = getWeatherService().getWeatherForDeparture(b.getDeparture().getId());
+        } catch (Exception e) {
+            log.warn("[Booking] Could not load weather for departure {}: {}", b.getDeparture().getId(), e.getMessage());
+        }
+
+        // Weather overview từ TourDeparture (summary ngắn)
+        TourDeparture dep = b.getDeparture();
+
         return BookingDetailResponse.builder()
                 .id(b.getId())
                 .bookingCode(b.getBookingCode())
-                .tourTitle(b.getDeparture().getTour().getTitle())
-                .tourSlug(b.getDeparture().getTour().getSlug())
-                .departureDate(b.getDeparture().getDepartureDate())
-                .returnDate(b.getDeparture().getReturnDate())
-                .durationDays(b.getDeparture().getTour().getDurationDays())
-                .durationNights(b.getDeparture().getTour().getDurationNights())
+                .tourTitle(dep.getTour().getTitle())
+                .tourSlug(dep.getTour().getSlug())
+                .departureDate(dep.getDepartureDate())
+                .returnDate(dep.getReturnDate())
+                .durationDays(dep.getTour().getDurationDays())
+                .durationNights(dep.getTour().getDurationNights())
                 .totalPrice(b.getTotalPrice())
                 .subtotalTour(b.getSubtotalTour())
                 .subtotalEquipment(b.getSubtotalEquipment())
@@ -330,12 +350,18 @@ public class BookingServiceImpl implements BookingService {
                 .status(b.getStatus())
                 .numParticipants(b.getNumParticipants())
                 .participantsInfo(b.getParticipantsInfo())
-                .meetingPoint(b.getDeparture().getMeetingPoint())
+                .meetingPoint(dep.getMeetingPoint())
                 .specialRequests(b.getSpecialRequests())
                 .cancellationReason(b.getCancellationReason())
                 .cancelledAt(b.getCancelledAt())
                 .paidAt(b.getPaidAt())
                 .bookedAt(b.getBookedAt())
+                .departureId(dep.getId())
+                .weatherForecast(weatherForecast)
+                .weatherOverallSummary(dep.getWeatherSummary())
+                .weatherIcon(dep.getWeatherIcon())
+                .tempMinC(dep.getTempMinC())
+                .tempMaxC(dep.getTempMaxC())
                 .rentals(rentals)
                 .payments(payments)
                 .build();

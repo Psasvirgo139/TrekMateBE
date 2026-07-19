@@ -37,4 +37,16 @@ public interface TourDepartureRepository extends JpaRepository<TourDeparture, UU
             @Param("tourId") UUID tourId,
             @Param("statuses") List<DepartureStatus> statuses,
             @Param("date") LocalDate date);
+
+    /**
+     * Dùng cho WeatherScheduler: tìm tất cả departure trong khoảng ngày cần dự báo.
+     * Status IN ('OPEN','SCHEDULED') để chỉ cập nhật tour sắp diễn ra.
+     */
+    @Query("SELECT td FROM TourDeparture td JOIN FETCH td.tour t " +
+           "WHERE td.departureDate BETWEEN :fromDate AND :toDate " +
+           "AND td.status IN ('OPEN', 'SCHEDULED')")
+    List<TourDeparture> findDeparturesForWeatherUpdate(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate);
 }
+

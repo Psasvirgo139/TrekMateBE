@@ -79,6 +79,10 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   google:
     client-id: ${GOOGLE_CLIENT_ID:328260392043-l423v02sl76hbr2kc7vv6s8448m9pv35.apps.googleusercontent.com}
+  gemini:
+    api-key: ${GEMINI_API_KEY}
+    base-url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-3.5-flash
   payos:
     client-id: ${PAYOS_CLIENT_ID:f8ade6f1-11d0-4f19-be61-6d0aef90da55}
     api-key: ${PAYOS_API_KEY:416d36ad-63bc-4e41-972b-ebb2b651fd21}
