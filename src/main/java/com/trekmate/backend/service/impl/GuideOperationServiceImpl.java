@@ -106,6 +106,13 @@ public class GuideOperationServiceImpl implements GuideOperationService {
         TourDeparture departure = departureRepository.findById(departureId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Departure not found"));
 
+        LocalDate today = LocalDate.now();
+        if (!today.isEqual(departure.getDepartureDate())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "You can only start the tour on its departure date: " + departure.getDepartureDate());
+        }
+
+        checkGuideOngoingTours(departure);
+
         departure.setStatus(DepartureStatus.ONGOING);
         departureRepository.save(departure);
 
@@ -122,6 +129,8 @@ public class GuideOperationServiceImpl implements GuideOperationService {
         if (departure.getStatus() != DepartureStatus.ONGOING) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "Attendance can only be edited during the ongoing departure period.");
         }
+
+        checkGuideOngoingTours(departure);
 
         updateBookingsAttendance(request);
     }
@@ -199,5 +208,22 @@ public class GuideOperationServiceImpl implements GuideOperationService {
                 });
             }
         }
+    }
+
+    private void checkGuideOngoingTours(TourDeparture departure) {
+        departureGuideRepository.findByDepartureId(departure.getId()).forEach(dg -> {
+            Guide guide = dg.getGuide();
+            if (guide != null) {
+                List<TourDeparture> ongoingDepartures = departureGuideRepository.findByGuideId(guide.getId()).stream()
+                        .map(dgItem -> dgItem.getDeparture())
+                        .filter(d -> d.getStatus() == DepartureStatus.ONGOING && !d.getId().equals(departure.getId()))
+                        .collect(Collectors.toList());
+                if (!ongoingDepartures.isEmpty()) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST, 
+                            "Guide " + guide.getDisplayName() + " is already leading another ongoing tour: " 
+                            + ongoingDepartures.get(0).getTour().getTitle() + ".");
+                }
+            }
+        });
     }
 }
