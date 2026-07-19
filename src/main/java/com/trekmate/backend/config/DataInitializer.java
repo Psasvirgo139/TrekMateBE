@@ -156,6 +156,7 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("[DataInitializer] Đã cập nhật ngày của các đợt khởi hành cũ lên tương lai để test.");
             }
             ensureFutureDeparturesForTours();
+            updateTourRatingAndReviewsStats();
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
@@ -181,6 +182,7 @@ public class DataInitializer implements CommandLineRunner {
         seedDeparturesBookingsReviewsWeatherAndRentals(users, tours.tours());
 
         ensureFutureDeparturesForTours();
+        updateTourRatingAndReviewsStats();
         log.info("[DataInitializer] Seed hoàn tất.");
     }
 
@@ -1269,6 +1271,19 @@ public class DataInitializer implements CommandLineRunner {
                     daysOffset += 10;
                 }
             }
+        }
+    }
+
+    private void updateTourRatingAndReviewsStats() {
+        log.info("[DataInitializer] Đang cập nhật rating và reviews cho toàn bộ tour...");
+        List<Tour> tours = tourRepository.findAll();
+        for (Tour tour : tours) {
+            Double avgRating = reviewRepository.avgRatingByTour(tour.getId());
+            long totalReviews = reviewRepository.countByTourIdAndIsApproved(tour.getId(), true);
+            tour.setAvgRating(avgRating != null ? BigDecimal.valueOf(avgRating) : BigDecimal.ZERO);
+            tour.setTotalReviews((int) totalReviews);
+            tourRepository.save(tour);
+            log.info("[DataInitializer] Cập nhật tour '{}': avgRating={}, totalReviews={}", tour.getTitle(), tour.getAvgRating(), tour.getTotalReviews());
         }
     }
 }

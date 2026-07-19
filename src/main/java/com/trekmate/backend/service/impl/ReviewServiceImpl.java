@@ -35,6 +35,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserRepository userRepository;
     private final GuideRepository guideRepository;
     private final ReviewMapper reviewMapper;
+    private final TourRepository tourRepository;
 
     @Override
     @Transactional
@@ -84,6 +85,8 @@ public class ReviewServiceImpl implements ReviewService {
 
         review = reviewRepository.save(review);
         log.info("Review created: id={}, bookingId={}, userId={}", review.getId(), request.getBookingId(), userId);
+
+        updateTourStats(review.getTour());
 
         return reviewMapper.toResponse(review, userId, false);
     }
@@ -203,6 +206,7 @@ public class ReviewServiceImpl implements ReviewService {
         review = reviewRepository.save(review);
 
         log.info("Review {} approved", reviewId);
+        updateTourStats(review.getTour());
         return reviewMapper.toResponse(review, null, false);
     }
 
@@ -217,8 +221,12 @@ public class ReviewServiceImpl implements ReviewService {
             throw new AppException(ErrorCode.FORBIDDEN, "You can only delete your own reviews");
         }
 
+        Tour tour = review.getTour();
+
         reviewRepository.delete(review);
         log.info("Review {} deleted by user {}", reviewId, userId);
+
+        updateTourStats(tour);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -238,5 +246,13 @@ public class ReviewServiceImpl implements ReviewService {
             case "helpful" -> Sort.by(Sort.Direction.DESC, "helpfulCount");
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
+    }
+    private void updateTourStats(Tour tour) {
+        if (tour == null) return;
+        Double avgRating = reviewRepository.avgRatingByTour(tour.getId());
+        long totalReviews = reviewRepository.countByTourIdAndIsApproved(tour.getId(), true);
+        tour.setAvgRating(avgRating != null ? java.math.BigDecimal.valueOf(avgRating) : java.math.BigDecimal.ZERO);
+        tour.setTotalReviews((int) totalReviews);
+        tourRepository.save(tour);
     }
 }
