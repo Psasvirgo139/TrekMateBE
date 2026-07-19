@@ -1,31 +1,34 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT}
   servlet:
     context-path: /api
 
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
   application:
     name: trekmate-backend
 
   profiles:
-    active: dev   # Đổi thành "prod" khi deploy
+    active: dev
     group:
       dev:
         - dev-local
+
   # =============================================
   # POSTGRESQL
   # =============================================
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/trekmate}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:123456}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
     # Connection Pool (HikariCP)
     hikari:
       pool-name: TrekMateHikariPool
-      minimum-idle: ${HIKARI_MIN_IDLE:5}
-      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE}
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE}
       idle-timeout: 300000       # 5 phút
       connection-timeout: 20000  # 20 giây
       max-lifetime: 1200000      # 20 phút
@@ -33,8 +36,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}   # update (dev) | validate (prod) | none
-    show-sql: ${JPA_SHOW_SQL:true}
+      ddl-auto: ${JPA_DDL_AUTO}
+    show-sql: ${JPA_SHOW_SQL}
     properties:
       hibernate:
         format_sql: true
@@ -68,33 +71,33 @@ app:
   name: TrekMate
   version: 1.0.0
   jwt:
-    secret: ${JWT_SECRET:trekmate-dev-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+    secret: ${JWT_SECRET}
     expiration-ms: 86400000
     remember-me-expiration-ms: 604800000
   mail:
-    from: ${MAIL_FROM:TrekMate <duynhatvo05@gmail.com>}
+    from: ${MAIL_FROM}
     otp-expiration-minutes: 30
     otp-cooldown-seconds: 60
     otp-max-attempts: 5
-  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  frontend-url: ${FRONTEND_URL}
   google:
-    client-id: ${GOOGLE_CLIENT_ID:328260392043-l423v02sl76hbr2kc7vv6s8448m9pv35.apps.googleusercontent.com}
+    client-id: ${GOOGLE_CLIENT_ID}
   gemini:
     api-key: ${GEMINI_API_KEY}
     base-url: https://generativelanguage.googleapis.com/v1beta
     model: gemini-3.5-flash
   payos:
-    client-id: ${PAYOS_CLIENT_ID:f8ade6f1-11d0-4f19-be61-6d0aef90da55}
-    api-key: ${PAYOS_API_KEY:416d36ad-63bc-4e41-972b-ebb2b651fd21}
-    checksum-key: ${PAYOS_CHECKSUM_KEY:c9e95bc337d249b394a3bbc4cb5baf16772c2a10354bc8935b67adb3172fbded}
-    base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
-    return-url: ${PAYOS_RETURN_URL:http://localhost:5173/payment/success}
-    cancel-url: ${PAYOS_CANCEL_URL:http://localhost:5173/payment/cancel}
+    client-id: ${PAYOS_CLIENT_ID}
+    api-key: ${PAYOS_API_KEY}
+    checksum-key: ${PAYOS_CHECKSUM_KEY}
+    base-url: ${PAYOS_BASE_URL}
+    return-url: ${PAYOS_RETURN_URL}
+    cancel-url: ${PAYOS_CANCEL_URL}
 
 logging:
   level:
-    com.trekmate: ${LOG_LEVEL_APP:DEBUG}
-    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
-    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:TRACE}
+    com.trekmate: ${LOG_LEVEL_APP}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER}
     com.zaxxer.hikari: INFO
-    root: ${LOG_LEVEL_ROOT:INFO}
+    root: ${LOG_LEVEL_ROOT}
