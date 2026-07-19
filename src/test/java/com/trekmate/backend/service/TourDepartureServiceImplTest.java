@@ -106,7 +106,7 @@ class TourDepartureServiceImplTest {
     void createDeparture_whenDuplicateDate_throwsException() {
         LocalDate date = LocalDate.now();
         TourDepartureRequest req = new TourDepartureRequest(
-                date, null, null, BigDecimal.valueOf(100), (short) 10, (short) 2, true, "Hanoi", null, null, "Notes", null
+                date, null, null, BigDecimal.valueOf(100), (short) 10, (short) 2, true, "Hanoi", null, null, "Notes", null, null
         );
 
         when(tourRepository.findById(tourId)).thenReturn(Optional.of(tour));
@@ -124,7 +124,7 @@ class TourDepartureServiceImplTest {
         // Tour durationDays is 3, so returnDate should be 2026-07-12
         // cutoffDate should default to 2026-07-09
         TourDepartureRequest req = new TourDepartureRequest(
-                date, null, null, BigDecimal.valueOf(100), (short) 10, (short) 2, true, "Hanoi", null, null, "Notes", null
+                date, null, null, BigDecimal.valueOf(100), (short) 10, (short) 2, true, "Hanoi", null, null, "Notes", null, null
         );
 
         when(tourRepository.findById(tourId)).thenReturn(Optional.of(tour));
@@ -191,7 +191,7 @@ class TourDepartureServiceImplTest {
         LocalDate date = LocalDate.of(2026, 8, 10);
         UUID guideId = UUID.randomUUID();
         TourDepartureRequest req = new TourDepartureRequest(
-                date, null, null, BigDecimal.valueOf(100), (short) 10, (short) 2, true, "Hanoi", null, null, "Notes", List.of(guideId)
+                date, null, null, BigDecimal.valueOf(100), (short) 10, (short) 2, true, "Hanoi", null, null, "Notes", List.of(guideId), null
         );
 
         when(tourRepository.findById(tourId)).thenReturn(Optional.of(tour));

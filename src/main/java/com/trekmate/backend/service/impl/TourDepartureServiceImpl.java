@@ -73,6 +73,15 @@ public class TourDepartureServiceImpl implements TourDepartureService {
         LocalDate returnDate = request.returnDate() != null ? request.returnDate() : departureDate.plusDays(durationDays - 1);
         LocalDate cutoffDate = request.cutoffDate() != null ? request.cutoffDate() : departureDate.minusDays(1);
 
+        DepartureStatus status = DepartureStatus.SCHEDULED;
+        if (request.status() != null) {
+            try {
+                status = DepartureStatus.valueOf(request.status().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                status = DepartureStatus.SCHEDULED;
+            }
+        }
+
         TourDeparture departure = TourDeparture.builder()
                 .tour(tour)
                 .departureDate(departureDate)
@@ -86,7 +95,7 @@ public class TourDepartureServiceImpl implements TourDepartureService {
                 .meetingLat(request.meetingLat())
                 .meetingLng(request.meetingLng())
                 .notes(request.notes())
-                .status(DepartureStatus.SCHEDULED)
+                .status(status)
                 .bookedSlots((short) 0)
                 .build();
 
@@ -192,6 +201,13 @@ public class TourDepartureServiceImpl implements TourDepartureService {
         departure.setMeetingLat(request.meetingLat());
         departure.setMeetingLng(request.meetingLng());
         departure.setNotes(request.notes());
+        if (request.status() != null) {
+            try {
+                departure.setStatus(DepartureStatus.valueOf(request.status().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Keep existing status
+            }
+        }
 
         // Clear existing assignments
         List<DepartureGuide> currentAssignments = departureGuideRepository.findByDepartureId(departureId);

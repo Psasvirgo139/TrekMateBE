@@ -35,5 +35,7 @@ public record TourDepartureRequest(
 
         String notes,
 
-        java.util.List<java.util.UUID> guideIds
+        java.util.List<java.util.UUID> guideIds,
+
+        String status
 ) {}
