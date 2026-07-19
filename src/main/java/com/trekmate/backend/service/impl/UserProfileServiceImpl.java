@@ -16,7 +16,9 @@ import com.trekmate.backend.repository.BookingRepository;
 import com.trekmate.backend.repository.CustomerRepository;
 import com.trekmate.backend.repository.DepartureGuideRepository;
 import com.trekmate.backend.repository.GuideRepository;
+import com.trekmate.backend.repository.ReviewRepository;
 import com.trekmate.backend.repository.UserRepository;
+import com.trekmate.backend.dto.response.GuideTourHistoryResponse;
 import com.trekmate.backend.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final GuideRepository guideRepository;
     private final BookingRepository bookingRepository;
     private final DepartureGuideRepository departureGuideRepository;
+    private final ReviewRepository reviewRepository;
 
     @Override
     @Transactional
@@ -175,7 +178,8 @@ public class UserProfileServiceImpl implements UserProfileService {
                 guide.getTotalReviews(),
                 totalToursLed,
                 guide.getIsAvailable(),
-                mapCertifications(guide.getCertifications())
+                mapCertifications(guide.getCertifications()),
+                getToursLedHistory(userId)
         );
     }
 
@@ -240,7 +244,8 @@ public class UserProfileServiceImpl implements UserProfileService {
                 guide.getTotalReviews(),
                 totalToursLed,
                 guide.getIsAvailable(),
-                mapCertifications(guide.getCertifications())
+                mapCertifications(guide.getCertifications()),
+                getToursLedHistory(userId)
         );
     }
 
@@ -306,6 +311,24 @@ public class UserProfileServiceImpl implements UserProfileService {
                         (String) m.get("issued_by"),
                         m.get("year") instanceof Number ? ((Number) m.get("year")).intValue() : null
                 ))
+                .toList();
+    }
+
+    private List<GuideTourHistoryResponse> getToursLedHistory(UUID userId) {
+        return departureGuideRepository.findByGuideId(userId).stream()
+                .filter(dg -> dg.getDeparture().getStatus() != DepartureStatus.CANCELLED)
+                .map(dg -> {
+                    var departure = dg.getDeparture();
+                    Double avgRating = reviewRepository.avgRatingByDeparture(departure.getId());
+                    return new GuideTourHistoryResponse(
+                            departure.getId(),
+                            departure.getTour().getTitle(),
+                            departure.getDepartureDate(),
+                            avgRating,
+                            departure.getStatus().name()
+                    );
+                })
+                .sorted((a, b) -> b.departureDate().compareTo(a.departureDate()))
                 .toList();
     }
 }

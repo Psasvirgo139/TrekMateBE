@@ -40,5 +40,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("SELECT AVG(r.equipmentRating) FROM Review r WHERE r.tour.id = :tourId AND r.isApproved = true")
     Double avgEquipmentRatingByTour(@Param("tourId") UUID tourId);
+
+    @Query("SELECT AVG(r.overallRating) FROM Review r WHERE r.departure.id = :departureId AND r.isApproved = true")
+    Double avgRatingByDeparture(@Param("departureId") UUID departureId);
+
+    @Query("SELECT AVG(r.overallRating) FROM Review r WHERE r.guide.id = :guideId AND r.isApproved = true")
+    Double avgRatingByGuide(@Param("guideId") UUID guideId);
+
+    long countByGuideIdAndIsApproved(UUID guideId, Boolean isApproved);
 }
 

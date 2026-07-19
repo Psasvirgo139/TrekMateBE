@@ -157,6 +157,8 @@ public class DataInitializer implements CommandLineRunner {
             }
             ensureFutureDeparturesForTours();
             updateTourRatingAndReviewsStats();
+            updateGuideRatingAndReviewsStats();
+            syncCustomerAndGuideStats();
             return;
         }
         log.info("[DataInitializer] Database trống — bắt đầu seed dữ liệu...");
@@ -183,6 +185,8 @@ public class DataInitializer implements CommandLineRunner {
 
         ensureFutureDeparturesForTours();
         updateTourRatingAndReviewsStats();
+        updateGuideRatingAndReviewsStats();
+        syncCustomerAndGuideStats();
         log.info("[DataInitializer] Seed hoàn tất.");
     }
 
@@ -1285,6 +1289,38 @@ public class DataInitializer implements CommandLineRunner {
             tourRepository.save(tour);
             log.info("[DataInitializer] Cập nhật tour '{}': avgRating={}, totalReviews={}", tour.getTitle(), tour.getAvgRating(), tour.getTotalReviews());
         }
+    }
+
+    private void updateGuideRatingAndReviewsStats() {
+        log.info("[DataInitializer] Đang cập nhật rating và reviews cho toàn bộ Guide...");
+        List<Guide> guides = guideRepository.findAll();
+        for (Guide guide : guides) {
+            Double avgRating = reviewRepository.avgRatingByGuide(guide.getId());
+            long totalReviews = reviewRepository.countByGuideIdAndIsApproved(guide.getId(), true);
+            guide.setAvgRating(avgRating != null ? BigDecimal.valueOf(avgRating) : BigDecimal.ZERO);
+            guide.setTotalReviews((int) totalReviews);
+            guideRepository.save(guide);
+            log.info("[DataInitializer] Cập nhật Guide '{}': avgRating={}, totalReviews={}", 
+                    guide.getDisplayName(), guide.getAvgRating(), guide.getTotalReviews());
+        }
+    }
+
+    private void syncCustomerAndGuideStats() {
+        log.info("[DataInitializer] Đang đồng bộ số lượng tour đã tham gia và đã dẫn cho Customer và Guide...");
+        List<Customer> customers = customerRepository.findAll();
+        for (Customer customer : customers) {
+            long totalTours = bookingRepository.countByUserIdAndStatus(customer.getId(), BookingStatus.COMPLETED);
+            customer.setTotalToursJoined((int) totalTours);
+            customerRepository.save(customer);
+        }
+
+        List<Guide> guides = guideRepository.findAll();
+        for (Guide guide : guides) {
+            long totalToursLed = departureGuideRepository.countByGuideIdAndDepartureStatus(guide.getId(), DepartureStatus.COMPLETED);
+            guide.setTotalToursLed((int) totalToursLed);
+            guideRepository.save(guide);
+        }
+        log.info("[DataInitializer] Đồng bộ thống kê hoàn tất.");
     }
 }
 

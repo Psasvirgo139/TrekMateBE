@@ -87,6 +87,7 @@ public class ReviewServiceImpl implements ReviewService {
         log.info("Review created: id={}, bookingId={}, userId={}", review.getId(), request.getBookingId(), userId);
 
         updateTourStats(review.getTour());
+        updateGuideStats(review.getGuide());
 
         return reviewMapper.toResponse(review, userId, false);
     }
@@ -207,6 +208,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         log.info("Review {} approved", reviewId);
         updateTourStats(review.getTour());
+        updateGuideStats(review.getGuide());
         return reviewMapper.toResponse(review, null, false);
     }
 
@@ -222,11 +224,13 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         Tour tour = review.getTour();
+        Guide guide = review.getGuide();
 
         reviewRepository.delete(review);
         log.info("Review {} deleted by user {}", reviewId, userId);
 
         updateTourStats(tour);
+        updateGuideStats(guide);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -254,5 +258,14 @@ public class ReviewServiceImpl implements ReviewService {
         tour.setAvgRating(avgRating != null ? java.math.BigDecimal.valueOf(avgRating) : java.math.BigDecimal.ZERO);
         tour.setTotalReviews((int) totalReviews);
         tourRepository.save(tour);
+    }
+
+    private void updateGuideStats(Guide guide) {
+        if (guide == null) return;
+        Double avgRating = reviewRepository.avgRatingByGuide(guide.getId());
+        long totalReviews = reviewRepository.countByGuideIdAndIsApproved(guide.getId(), true);
+        guide.setAvgRating(avgRating != null ? java.math.BigDecimal.valueOf(avgRating) : java.math.BigDecimal.ZERO);
+        guide.setTotalReviews((int) totalReviews);
+        guideRepository.save(guide);
     }
 }

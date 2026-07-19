@@ -22,5 +22,6 @@ public record GuideProfileResponse(
         Integer totalReviews,
         Long totalToursLed,
         Boolean isAvailable,
-        List<CertificationDto> certifications
+        List<CertificationDto> certifications,
+        List<GuideTourHistoryResponse> toursLedHistory
 ) {}
