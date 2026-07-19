@@ -1069,6 +1069,65 @@ public class DataInitializer implements CommandLineRunner {
                         .build());
             }
         }
+
+        // ─── 4. ONGOING TOUR FOR DEMO (4-day Tà Năng, led by Nguyễn Văn Sơn) ──────────
+        Tour taNangTour = tours.stream()
+                .filter(t -> t.getSlug().contains("ta-nang"))
+                .findFirst()
+                .orElse(tours.get(0));
+
+        LocalDate ongoingDepDate = LocalDate.now().minusDays(1);
+        LocalDate ongoingRetDate = ongoingDepDate.plusDays(4 - 1); // 4 days duration
+        LocalDate ongoingCutDate = ongoingDepDate.minusDays(3);
+
+        TourDeparture ongoingDep = departureRepository.saveAndFlush(TourDeparture.builder()
+                .tour(taNangTour)
+                .departureDate(ongoingDepDate)
+                .returnDate(ongoingRetDate)
+                .cutoffDate(ongoingCutDate)
+                .pricePerPerson(taNangTour.getDifficulty() == DifficultyLevel.HARD ? new BigDecimal("2500000") : new BigDecimal("1500000"))
+                .maxGroupSize((short) 30)
+                .minGroupSize((short) 2)
+                .bookedSlots((short) customers.size())
+                .allowJoinTour(false)
+                .meetingPoint(taNangTour.getStartLocation() + " lúc 6:00 AM")
+                .weatherSummary("Thời tiết ấm áp chặng đầu, mây rải rác")
+                .weatherIcon("cloudy")
+                .tempMinC((short) 18)
+                .tempMaxC((short) 28)
+                .weatherUpdatedAt(LocalDateTime.now())
+                .status(DepartureStatus.ONGOING)
+                .actualStartAt(ongoingDepDate.atTime(6, 15))
+                .build());
+
+        Guide sonGuide = users.son();
+        departureGuideRepository.saveAndFlush(DepartureGuide.builder()
+                .id(new DepartureGuideId(ongoingDep.getId(), sonGuide.getId()))
+                .departure(ongoingDep)
+                .guide(sonGuide)
+                .role(GuideRoleInTour.LEAD)
+                .confirmedAt(LocalDateTime.now().minusDays(5))
+                .build());
+
+        seedWeatherForDeparture(ongoingDep, taNangTour);
+
+        // All customers are bookings of this departure
+        for (int i = 0; i < customers.size(); i++) {
+            User customerUser = customers.get(i);
+            bookingRepository.save(Booking.builder()
+                    .bookingCode("TV-" + ongoingDepDate.toString().replace("-", "") + "-" + taNangTour.getId().toString().substring(0, 4) + "-" + i)
+                    .user(customerUser)
+                    .departure(ongoingDep)
+                    .numParticipants((short) 1)
+                    .priceSnapshot(ongoingDep.getPricePerPerson())
+                    .subtotalTour(ongoingDep.getPricePerPerson())
+                    .subtotalEquipment(BigDecimal.ZERO)
+                    .totalPrice(ongoingDep.getPricePerPerson())
+                    .status(BookingStatus.ONGOING)
+                    .paidAt(LocalDateTime.now().minusDays(5))
+                    .bookedAt(LocalDateTime.now().minusDays(5))
+                    .build());
+        }
     }
 
     private void seedWeatherForDeparture(TourDeparture dep, Tour tour) {
@@ -1111,10 +1170,17 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createCustomer(User user, String fullName, String dob, FitnessLevel fitness) {
+        java.util.Map<String, Object> contact = new java.util.HashMap<>();
+        contact.put("name", "Người thân " + fullName.split(" ")[fullName.split(" ").length - 1]);
+        contact.put("relationship", "Gia đình");
+        contact.put("phone", "09" + String.format("%08d", (int)(Math.random() * 100000000)));
+
         customerRepository.saveAndFlush(Customer.builder()
                 .user(user).fullName(fullName)
                 .dateOfBirth(LocalDate.parse(dob))
-                .nationality("Việt Nam").fitnessLevel(fitness).build());
+                .nationality("Việt Nam").fitnessLevel(fitness)
+                .emergencyContact(contact)
+                .build());
     }
 
     private Guide createGuide(User user, String displayName, String bio, short expYears,

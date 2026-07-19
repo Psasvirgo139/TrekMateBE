@@ -158,6 +158,10 @@ public class GuideOperationServiceImpl implements GuideOperationService {
                         log.info("Updated totalToursJoined for customer {} to {}", customer.getFullName(), customer.getTotalToursJoined());
                     });
                 }
+            } else if (booking.getStatus() == BookingStatus.MISSING) {
+                booking.setStatus(BookingStatus.MISSED);
+                bookingRepository.save(booking);
+                log.info("Transitioned booking {} from MISSING to MISSED", booking.getBookingCode());
             }
         }
 
