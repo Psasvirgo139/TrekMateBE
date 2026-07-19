@@ -53,11 +53,13 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<BookingHistoryResponse> getMyBookings(String email, Pageable pageable) {
+    public Page<BookingHistoryResponse> getMyBookings(String email, BookingStatus status, Pageable pageable) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        Page<Booking> bookings = bookingRepository.findByUserId(user.getId(), pageable);
+        Page<Booking> bookings = (status != null)
+                ? bookingRepository.findByUserIdAndStatus(user.getId(), status, pageable)
+                : bookingRepository.findByUserId(user.getId(), pageable);
         return bookings.map(this::mapToHistoryResponse);
     }
 

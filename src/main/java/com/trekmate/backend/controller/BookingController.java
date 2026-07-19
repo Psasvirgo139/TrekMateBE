@@ -7,6 +7,7 @@ import com.trekmate.backend.dto.response.BookingDetailResponse;
 import com.trekmate.backend.dto.response.BookingHistoryResponse;
 import com.trekmate.backend.exception.AppException;
 import com.trekmate.backend.exception.ErrorCode;
+import com.trekmate.backend.model.enums.BookingStatus;
 import com.trekmate.backend.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -51,10 +52,16 @@ public class BookingController {
     public ApiResponse<Page<BookingHistoryResponse>> getMyBookings(
             @Parameter(hidden = true) Authentication authentication,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(required = false) String status,
             Pageable pageable) {
         String email = resolveEmail(authentication, authHeader);
-        log.info("REST request to get booking history for user: {}", email);
-        Page<BookingHistoryResponse> data = bookingService.getMyBookings(email, pageable);
+        log.info("REST request to get booking history for user: {}, status filter: {}", email, status);
+        BookingStatus bookingStatus = null;
+        if (status != null && !status.isBlank()) {
+            try { bookingStatus = BookingStatus.valueOf(status.toUpperCase()); }
+            catch (IllegalArgumentException ignored) { /* invalid status → no filter */ }
+        }
+        Page<BookingHistoryResponse> data = bookingService.getMyBookings(email, bookingStatus, pageable);
         return ApiResponse.<Page<BookingHistoryResponse>>builder()
                 .code(200)
                 .message("Lấy lịch sử đặt tour thành công")

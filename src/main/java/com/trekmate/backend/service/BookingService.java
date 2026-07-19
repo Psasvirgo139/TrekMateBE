@@ -4,11 +4,12 @@ import com.trekmate.backend.dto.request.CancelBookingRequest;
 import com.trekmate.backend.dto.request.CreateBookingRequest;
 import com.trekmate.backend.dto.response.BookingDetailResponse;
 import com.trekmate.backend.dto.response.BookingHistoryResponse;
+import com.trekmate.backend.model.enums.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface BookingService {
-    Page<BookingHistoryResponse> getMyBookings(String email, Pageable pageable);
+    Page<BookingHistoryResponse> getMyBookings(String email, BookingStatus status, Pageable pageable);
     BookingDetailResponse getBookingDetail(Long id, String email);
     BookingDetailResponse cancelBooking(Long id, String email, CancelBookingRequest request);
     BookingDetailResponse createBooking(String email, CreateBookingRequest request);
