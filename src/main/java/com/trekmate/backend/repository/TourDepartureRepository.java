@@ -48,5 +48,18 @@ public interface TourDepartureRepository extends JpaRepository<TourDeparture, UU
     List<TourDeparture> findDeparturesForWeatherUpdate(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
+
+    /**
+     * Dùng cho AiRecommendationScheduler: tìm các departure chưa có bản ghi
+     * AI recommendation trong bảng departure_ai_recommendations.
+     * Chỉ quét departure trong phạm vi ngày chỉ định với status OPEN hoặc SCHEDULED.
+     */
+    @Query("SELECT td FROM TourDeparture td JOIN FETCH td.tour t " +
+           "WHERE td.departureDate BETWEEN :fromDate AND :toDate " +
+           "AND td.status IN ('OPEN', 'SCHEDULED') " +
+           "AND NOT EXISTS (SELECT 1 FROM DepartureAiRecommendation r WHERE r.departure.id = td.id)")
+    List<TourDeparture> findDeparturesForAiRecommendation(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate);
 }
 

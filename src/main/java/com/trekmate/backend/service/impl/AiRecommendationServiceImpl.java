@@ -7,9 +7,11 @@ import com.trekmate.backend.dto.response.AiGearRecommendationResponse.GearItem;
 import com.trekmate.backend.dto.response.WeatherDayResponse;
 import com.trekmate.backend.exception.AppException;
 import com.trekmate.backend.exception.ErrorCode;
+import com.trekmate.backend.model.DepartureAiRecommendation;
 import com.trekmate.backend.model.Equipment;
 import com.trekmate.backend.model.Tour;
 import com.trekmate.backend.model.TourDeparture;
+import com.trekmate.backend.repository.DepartureAiRecommendationRepository;
 import com.trekmate.backend.repository.EquipmentRepository;
 import com.trekmate.backend.repository.TourDepartureRepository;
 import com.trekmate.backend.service.AiRecommendationService;
@@ -20,20 +22,33 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * Implementation gọi Gemini API để gợi ý trang bị trekking.
- * Sau khi nhận response, đối chiếu với danh sách equipment có sẵn để highlight.
+ *
+ * Chiến lược cache DB-first:
+ *  - getGearRecommendation() → đọc từ bảng departure_ai_recommendations trước.
+ *    Nếu chưa có → gọi Gemini, lưu kết quả vào DB, trả về ngay.
+ *  - precalculateAiRecommendations() → batch tính trước mỗi đêm lúc 01:00 AM
+ *    cho các departure trong 10 ngày tiếp theo chưa có cached data.
+ *
+ * Phạm vi đặt vào @Transactional để đảm bảo Hibernate session còn mở khi
+ * truy cập các quan hệ LAZY (departure.getTour().getTitle(), v.v.).
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiRecommendationServiceImpl implements AiRecommendationService {
+
+    // ─── Số ngày scan cho batch pre-calculation ──────────────────────────────
+    private static final int AI_SCAN_WINDOW_DAYS = 10;
 
     @Value("${app.gemini.api-key}")
     private String geminiApiKey;
@@ -45,39 +60,122 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
     private String geminiModel;
 
     private final TourDepartureRepository departureRepository;
+    private final DepartureAiRecommendationRepository aiRecommendationRepository;
     private final EquipmentRepository equipmentRepository;
     private final WeatherService weatherService;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
+    // ─── Public API ───────────────────────────────────────────────────────────
+
+    /**
+     * Lấy AI recommendation cho một departure.
+     * Cache-first: đọc từ DB trước, chỉ gọi Gemini nếu chưa có cache.
+     */
     @Override
+    @Transactional
     public AiGearRecommendationResponse getGearRecommendation(UUID departureId) {
-        // 1. Lấy thông tin departure
+        // 1. Kiểm tra cache trước
+        Optional<DepartureAiRecommendation> cached = aiRecommendationRepository.findByDepartureId(departureId);
+        if (cached.isPresent()) {
+            log.info("[AI] Cache HIT for departure: {}", departureId);
+            return cached.get().getRecommendation();
+        }
+
+        log.info("[AI] Cache MISS for departure: {} — calling Gemini", departureId);
+
+        // 2. Lấy thông tin departure (JOIN FETCH tour để tránh LazyInitializationException)
         TourDeparture departure = departureRepository.findById(departureId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Departure not found: " + departureId));
 
+        // 3. Tính toán và lưu vào cache
+        AiGearRecommendationResponse result = generateAndCache(departure);
+        return result;
+    }
+
+    /**
+     * Batch pre-calculation: quét tất cả departure trong 10 ngày tiếp theo
+     * chưa có AI recommendation trong DB, rồi gọi Gemini và lưu lại.
+     * Được gọi bởi AiRecommendationScheduler lúc 01:00 AM mỗi ngày.
+     */
+    @Override
+    @Transactional
+    public void precalculateAiRecommendations() {
+        LocalDate today   = LocalDate.now();
+        LocalDate maxDate = today.plusDays(AI_SCAN_WINDOW_DAYS);
+
+        log.info("[AI-Scheduler] Scanning departures without AI cache | window: {} → {}", today, maxDate);
+
+        List<TourDeparture> departures =
+                departureRepository.findDeparturesForAiRecommendation(today, maxDate);
+
+        if (departures.isEmpty()) {
+            log.info("[AI-Scheduler] All departures in window already have AI recommendation cache.");
+            return;
+        }
+
+        log.info("[AI-Scheduler] Found {} departures to process", departures.size());
+
+        int success = 0, failed = 0;
+
+        for (TourDeparture departure : departures) {
+            try {
+                generateAndCache(departure);
+                success++;
+                // Nhỏ delay để tránh rate-limit Gemini API
+                Thread.sleep(500);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                log.error("[AI-Scheduler] Failed for departure {}: {}", departure.getId(), e.getMessage());
+                failed++;
+            }
+        }
+
+        log.info("[AI-Scheduler] Completed: {} success, {} failed out of {} departures",
+                success, failed, departures.size());
+    }
+
+    // ─── Core generation + cache logic ───────────────────────────────────────
+
+    /**
+     * Gọi Gemini để tạo recommendation cho một departure, sau đó lưu vào DB.
+     * Session JPA phải còn mở (gọi từ trong @Transactional method).
+     */
+    private AiGearRecommendationResponse generateAndCache(TourDeparture departure) {
         Tour tour = departure.getTour();
 
-        // 2. Lấy weather forecast
-        List<WeatherDayResponse> weatherList = weatherService.getWeatherForDeparture(departureId);
+        // Lấy weather forecast từ DB
+        List<WeatherDayResponse> weatherList = weatherService.getWeatherForDeparture(departure.getId());
 
-        // 3. Lấy danh sách thiết bị có sẵn cho thuê
+        // Lấy danh sách thiết bị cho thuê
         List<Equipment> availableEquipment = equipmentRepository
                 .findByIsActive(true, PageRequest.of(0, 100)).getContent();
 
-        // 4. Build prompt (include equipment catalog so AI uses exact names)
-        String prompt = buildGeminiPrompt(tour, departure, weatherList, availableEquipment);
+        // Build prompt + gọi Gemini
+        String prompt     = buildGeminiPrompt(tour, departure, weatherList, availableEquipment);
+        String rawResponse = callGeminiApi(prompt);
 
-        // 5. Call Gemini API
-        String rawAiResponse = callGeminiApi(prompt);
+        // Parse + enrich với equipment info
+        AiGearRecommendationResponse result = parseAndEnrichResponse(rawResponse, tour, weatherList, availableEquipment);
 
-        // 6. Parse response và đối chiếu với available equipment
-        return parseAndEnrichResponse(rawAiResponse, tour, weatherList, availableEquipment);
+        // Lưu vào bảng departure_ai_recommendations
+        DepartureAiRecommendation entity = DepartureAiRecommendation.builder()
+                .departure(departure)
+                .recommendation(result)
+                .build();
+        aiRecommendationRepository.save(entity);
+
+        log.info("[AI] Cached recommendation for departure: {}", departure.getId());
+        return result;
     }
 
     // ─── Prompt builder ───────────────────────────────────────────────────────
 
-    private String buildGeminiPrompt(Tour tour, TourDeparture departure, List<WeatherDayResponse> weather, List<Equipment> availableEquipment) {
+    private String buildGeminiPrompt(Tour tour, TourDeparture departure,
+                                     List<WeatherDayResponse> weather,
+                                     List<Equipment> availableEquipment) {
         StringBuilder sb = new StringBuilder();
 
         sb.append("Bạn là chuyên gia trekking Việt Nam. Hãy gợi ý danh sách trang bị cho chuyến đi sau:\n\n");
@@ -85,7 +183,8 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
         // Tour info
         sb.append("## THÔNG TIN CHUYẾN ĐI\n");
         sb.append("- Tên tour: ").append(tour.getTitle()).append("\n");
-        sb.append("- Thời gian: ").append(tour.getDurationDays()).append(" ngày ").append(tour.getDurationNights()).append(" đêm\n");
+        sb.append("- Thời gian: ").append(tour.getDurationDays()).append(" ngày ")
+          .append(tour.getDurationNights()).append(" đêm\n");
         if (tour.getMaxElevationM() != null) {
             sb.append("- Độ cao tối đa: ").append(tour.getMaxElevationM()).append(" m\n");
         }
@@ -123,7 +222,7 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
             sb.append("## THỜI TIẾT\nChưa có dữ liệu dự báo thời tiết cụ thể.\n\n");
         }
 
-        // ── QUAN TRỌNG: Danh sách thiết bị có thể thuê trong hệ thống ──────────
+        // Danh sách thiết bị có thể thuê
         if (!availableEquipment.isEmpty()) {
             sb.append("## DANH SÁCH THIẾT BỊ CÓ THỂ THUÊ TẠI TREKMATE\n");
             sb.append("(Đây là tên CHÍNH XÁC của các thiết bị có sẵn để cho thuê. ");
@@ -141,28 +240,17 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
             sb.append("\n");
         }
 
-        // Output format
-        sb.append("## YÊU CẦU OUTPUT\n");
-        sb.append("Trả về JSON hợp lệ theo cấu trúc sau (KHÔNG có markdown, KHÔNG có ```json):\n");
-        sb.append("{\n");
-        sb.append("  \"overallAdvice\": \"Lời khuyên tổng quát ngắn gọn cho chuyến đi\",\n");
-        sb.append("  \"essentials\": [\n");
-        sb.append("    {\"name\": \"Tên trang bị\", \"reason\": \"Lý do cần thiết\", \"category\": \"Phân loại (vd: Bảo hộ, Quần áo, Cắm trại, Kỹ thuật, Y tế, Ăn uống)\"}\n");
-        sb.append("  ],\n");
-        sb.append("  \"recommended\": [\n");
-        sb.append("    {\"name\": \"Tên trang bị\", \"reason\": \"Lý do nên mang\", \"category\": \"Phân loại\"}\n");
-        sb.append("  ]\n");
-        sb.append("}\n\n");
-        sb.append("Quy tắc:\n");
-        sb.append("- 'essentials': 5-8 món không thể thiếu cho điều kiện thời tiết và địa hình này\n");
-        sb.append("- 'recommended': 4-6 món nên mang thêm nếu có\n");
-        sb.append("- NẾU thiết bị có tên CHÍNH XÁC trong danh sách cho thuê ở trên, hãy dùng ĐÚNG TÊN đó\n");
-        sb.append("- Với thiết bị không có trong danh sách cho thuê, đặt tên cụ thể, thực tế bằng tiếng Việt\n");
-        sb.append("- CHỈ trả về JSON thuần, không có text thừa\n");
+        // Output format — compact để tiết kiệm input token, nhường chỗ cho response
+        sb.append("## OUTPUT\n");
+        sb.append("JSON thuần (không markdown). Schema:\n");
+        sb.append("{\"overallAdvice\":\"string\",\"essentials\":[{\"name\":\"string\",\"reason\":\"string\",\"category\":\"string\"}],\"recommended\":[{\"name\":\"string\",\"reason\":\"string\",\"category\":\"string\"}]}\n\n");
+        sb.append("- essentials: 5 món bắt buộc; recommended: 4 món nên có\n");
+        sb.append("- Dùng đúng tên trong danh sách thuê nếu phù hợp\n");
+        sb.append("- reason ngắn gọn (<= 12 từ); overallAdvice <= 25 từ\n");
+
 
         return sb.toString();
     }
-
 
     // ─── Gemini API call ──────────────────────────────────────────────────────
 
@@ -175,8 +263,12 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
                 )),
                 "generationConfig", Map.of(
                         "temperature", 0.7,
-                        "maxOutputTokens", 1024,
-                        "responseMimeType", "application/json"
+                        "maxOutputTokens", 2048,
+                        "responseMimeType", "application/json",
+                        // Tắt thinking budget để toàn bộ token dành cho output JSON
+                        // gemini-3.5-flash là thinking model — không set thinkingBudget
+                        // sẽ tiêu tốn hàng trăm token cho thinking trước khi sinh output
+                        "thinkingConfig", Map.of("thinkingBudget", 0)
                 )
         );
 
@@ -187,9 +279,15 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
-            return root.path("candidates").get(0)
-                       .path("content").path("parts").get(0)
-                       .path("text").asText();
+            JsonNode parts = root.path("candidates").get(0)
+                                 .path("content").path("parts");
+            // Nối tất cả parts text lại (model đôi khi split thành nhiều parts)
+            StringBuilder sb = new StringBuilder();
+            for (JsonNode part : parts) {
+                String text = part.path("text").asText("");
+                if (!text.isBlank()) sb.append(text);
+            }
+            return sb.toString();
         } catch (Exception e) {
             log.error("[AI] Gemini API call failed: {}", e.getMessage(), e);
             throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "AI service unavailable: " + e.getMessage());
@@ -204,11 +302,11 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
             List<Equipment> availableEquipment) {
 
         String overallAdvice = "Chuẩn bị đầy đủ trang bị phù hợp với điều kiện thời tiết.";
-        List<GearItem> essentials = new ArrayList<>();
-        List<GearItem> recommended = new ArrayList<>();
+        List<GearItem> essentials   = new ArrayList<>();
+        List<GearItem> recommended  = new ArrayList<>();
 
         try {
-            // Clean up JSON nếu Gemini trả về có markdown code fence
+            // Dọn dẹp JSON nếu Gemini trả về có markdown code fence
             String cleanJson = rawJson.trim();
             if (cleanJson.startsWith("```")) {
                 cleanJson = cleanJson.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").trim();
@@ -236,7 +334,6 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
             log.debug("[AI] Raw response: {}", rawJson);
         }
 
-        // Build weather summary text
         String weatherSummary = buildWeatherSummary(weatherList);
 
         return new AiGearRecommendationResponse(
@@ -250,13 +347,11 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
     }
 
     private GearItem buildGearItem(JsonNode itemNode, List<Equipment> availableEquipment) {
-        String name = itemNode.path("name").asText("");
-        String reason = itemNode.path("reason").asText("");
+        String name     = itemNode.path("name").asText("");
+        String reason   = itemNode.path("reason").asText("");
         String category = itemNode.path("category").asText("");
 
-        // Tìm equipment khớp trong kho cho thuê (fuzzy match theo tên)
         Optional<Equipment> matched = findMatchingEquipment(name, availableEquipment);
-
         if (matched.isPresent()) {
             Equipment eq = matched.get();
             String price = eq.getPricePerDay() != null
@@ -269,29 +364,27 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
     }
 
     /**
-     * Fuzzy match: tìm equipment có tên chứa từ khoá chung nhất của gear name.
-     * Chiến lược: normalize cả 2 về lowercase, tách từ, đếm từ chung.
+     * Fuzzy match: tìm equipment có tên chứa từ khoá chung nhất.
+     * Normalize về lowercase + bỏ dấu + tách từ, đếm số từ trùng.
      */
     private Optional<Equipment> findMatchingEquipment(String gearName, List<Equipment> equipmentList) {
         if (gearName == null || gearName.isBlank()) return Optional.empty();
 
-        String normalized = normalize(gearName);
-        Set<String> gearTokens = tokenize(normalized);
+        String          normalized = normalize(gearName);
+        Set<String>     gearTokens = tokenize(normalized);
 
         Equipment bestMatch = null;
-        int bestScore = 0;
+        int       bestScore = 0;
 
         for (Equipment eq : equipmentList) {
             if (!Boolean.TRUE.equals(eq.getIsActive())) continue;
-            String eqNorm = normalize(eq.getName());
+            String      eqNorm   = normalize(eq.getName());
             Set<String> eqTokens = tokenize(eqNorm);
 
-            // Intersection
             Set<String> common = new HashSet<>(gearTokens);
             common.retainAll(eqTokens);
 
             int score = common.size();
-            // Bonus: direct contains
             if (eqNorm.contains(normalized) || normalized.contains(eqNorm)) {
                 score += 3;
             }
@@ -323,7 +416,6 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
                 .filter(t -> t.length() >= 2)
                 .collect(Collectors.toSet());
     }
-
 
     private String buildWeatherSummary(List<WeatherDayResponse> weatherList) {
         if (weatherList.isEmpty()) return "Chưa có dữ liệu thời tiết.";

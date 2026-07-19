@@ -19,4 +19,11 @@ public interface AiRecommendationService {
      * @return AiGearRecommendationResponse với danh sách trang bị và highlight available rentals
      */
     AiGearRecommendationResponse getGearRecommendation(UUID departureId);
+
+    /**
+     * Tính trước và lưu vào DB kết quả AI recommendation cho tất cả departure
+     * trong phạm vi 10 ngày tiếp theo mà chưa có bản ghi cached.
+     * Được gọi bởi AiRecommendationScheduler lúc 01:00 AM mỗi ngày.
+     */
+    void precalculateAiRecommendations();
 }
