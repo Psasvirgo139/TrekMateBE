@@ -48,15 +48,16 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder             passwordEncoder;
     private final LocationRepository          locationRepository;
     private final TourAttributeRepository     tourAttributeRepository;
+    private final EquipmentRentalRepository   equipmentRentalRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // ─── Wrapper giữ các entity đã seed để truyền giữa các bước ───────────────
     private record SeedUsers(
             User admin,
-            User hoa, User khiem,
+            List<User> customers,
             Guide son, Guide mai, Guide anh) {}
 
-    private record SeedTours(Tour fansipan, Tour taNang, Tour mapiLeng) {}
+    private record SeedTours(List<Tour> tours) {}
 
     // ───────────────────────────────────────────────────────────────────────────
 
@@ -165,93 +166,114 @@ public class DataInitializer implements CommandLineRunner {
         SeedUsers users = seedUsers();
         SeedTours tours = seedTours(users.admin());
 
-        seedFansipanWaypointsAndItinerary(tours.fansipan());
+        // Tour 1 (Fansipan) dùng lịch trình viết tay chi tiết có sẵn
+        seedFansipanWaypointsAndItinerary(tours.tours().get(0));
 
-        TourDeparture dep1  = seedDeparture(tours.fansipan(), LocalDate.now().plusDays(10).toString(), LocalDate.now().plusDays(12).toString(), LocalDate.now().plusDays(8).toString(),
-                "2800000", (short) 12, (short) 4, true,
-                "Cổng trời Trạm Tôn, Sa Pa lúc 6:00",
-                "Nắng đẹp, tầm nhìn xa", "sunny", (short) 14, (short) 22, DepartureStatus.OPEN,
-                users.son());
+        // Các tour còn lại (2 đến 9) dùng cơ chế sinh động Waypoints & Itinerary
+        for (int i = 1; i < tours.tours().size(); i++) {
+            seedTourItineraryAndWaypoints(tours.tours().get(i));
+        }
 
-        TourDeparture dep10 = seedDeparture(tours.fansipan(), LocalDate.now().minusDays(10).toString(), LocalDate.now().minusDays(8).toString(), LocalDate.now().minusDays(12).toString(),
-                "2600000", (short) 10, (short) 10, false,
-                "Cổng trời Trạm Tôn, Sa Pa lúc 6:00",
-                "Nắng đẹp suốt hành trình", "sunny", (short) 12, (short) 20, DepartureStatus.COMPLETED,
-                users.son());
-        updateCompletedDeparture(dep10);
+        // Seed ảnh tour cho toàn bộ 9 tour
+        seedTourImages(tours.tours(), users.admin().getId());
 
-        TourDeparture dep5 = seedDeparture(tours.taNang(), LocalDate.now().plusDays(15).toString(), LocalDate.now().plusDays(18).toString(), LocalDate.now().plusDays(13).toString(),
-                "1950000", (short) 15, (short) 7, false,
-                "Sân UBND xã Tà Năng lúc 7:00",
-                "Thời tiết lý tưởng trekking", "sunny", (short) 18, (short) 28, DepartureStatus.OPEN,
-                users.mai());
-
-        TourDeparture dep6 = seedDeparture(tours.mapiLeng(), LocalDate.now().plusDays(20).toString(), LocalDate.now().plusDays(21).toString(), LocalDate.now().plusDays(18).toString(),
-                "1500000", (short) 8, (short) 5, true,
-                "Cột cờ Lũng Cú, Hà Giang lúc 6:30",
-                "Mây mù sáng sớm, quang sau", "cloudy", (short) 17, (short) 25, DepartureStatus.OPEN,
-                users.anh());
-
-        seedWeatherForDeparture(dep1, tours.fansipan());
-
-        seedBookingsAndReviews(users, tours.fansipan(), dep10, dep5, dep6);
-
-        seedTourImages(tours.fansipan(), tours.taNang(), tours.mapiLeng(), users.admin().getId());
+        // Seed đợt khởi hành, booking đầy đoàn, đánh giá, thời tiết và thuê đồ lịch sử
+        seedDeparturesBookingsReviewsWeatherAndRentals(users, tours.tours());
 
         ensureFutureDeparturesForTours();
         log.info("[DataInitializer] Seed hoàn tất.");
     }
 
-    private void seedTourImages(Tour fansipan, Tour taNang, Tour mapiLeng, java.util.UUID adminId) {
-        tourImageRepository.save(TourImage.builder()
-                .tour(fansipan)
-                .imageUrl("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80")
-                .caption("Bình minh trên đỉnh Fansipan")
-                .altText("Fansipan summit sunrise")
-                .isCover(true)
-                .sortOrder((short) 1)
-                .uploadedBy(adminId)
-                .build());
+    private void seedTourImages(List<Tour> tours, java.util.UUID adminId) {
+        String[][] imagesData = {
+            // Fansipan
+            {"https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80", "Bình minh trên đỉnh Fansipan", "Fansipan summit sunrise"},
+            {"https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80", "Rừng nguyên sinh Hoàng Liên Sơn", "Hoang Lien Son forest"},
+            {"https://images.unsplash.com/photo-1589308078059-be1415eab4c3?auto=format&fit=crop&w=1200&q=80", "Mây che phủ lũng núi Sapa", "Sapa misty valleys"},
+            {"https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=1200&q=80", "Bình minh Fansipan xanh ngút ngàn", "Fansipan peak views"},
+            {"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80", "Hùng vĩ dãy Hoàng Liên Sơn", "Hoang Lien mountain range"},
+            
+            // Ta Nang
+            {"https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80", "Thảo nguyên Tà Năng Phan Dũng", "Ta Nang Phan Dung grasslands"},
+            {"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80", "Thảo nguyên xanh mát rượi", "Ta Nang lush valley"},
+            {"https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=1200&q=80", "Rừng thông Tà Năng mờ sương", "Ta Nang misty pines"},
+            {"https://images.unsplash.com/photo-1500627869374-13cd993b1115?auto=format&fit=crop&w=1200&q=80", "Đón bình minh tại đồi cỏ", "Ta Nang hill sunrise"},
+            {"https://images.unsplash.com/photo-1434064511983-18c6dae20ed5?auto=format&fit=crop&w=1200&q=80", "Chiều hoàng hôn buông xuống Tà Năng", "Ta Nang twilight sky"},
 
-        tourImageRepository.save(TourImage.builder()
-                .tour(fansipan)
-                .imageUrl("https://images.unsplash.com/photo-1623090857341-4078f1e0ee34?auto=format&fit=crop&w=1200&q=80")
-                .caption("Rừng nguyên sinh Hoàng Liên Sơn")
-                .altText("Hoang Lien Son forest")
-                .isCover(false)
-                .sortOrder((short) 2)
-                .uploadedBy(adminId)
-                .build());
+            // Ma Pi Leng
+            {"https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80", "Hùng vĩ Mã Pí Lèng Hà Giang", "Ma Pi Leng pass"},
+            {"https://images.unsplash.com/photo-1547036967-23d11aacaee0?auto=format&fit=crop&w=1200&q=80", "Sông Nho Quế uốn lượn hiền hòa", "Nho Que river canyon"},
+            {"https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1200&q=80", "Con đèo Mã Pí Lèng hiểm trở", "Ma Pi Leng winding pass"},
+            {"https://images.unsplash.com/photo-1486915309851-b0cc1f8a0084?auto=format&fit=crop&w=1200&q=80", "Hoàng hôn Mã Pí Lèng", "Ma Pi Leng sunset"},
+            {"https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=80", "Đồi đá cao nguyên Hà Giang", "Dong Van karst plateau"},
 
-        tourImageRepository.save(TourImage.builder()
-                .tour(taNang)
-                .imageUrl("https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80")
-                .caption("Thảo nguyên Tà Năng Phan Dũng")
-                .altText("Ta Nang Phan Dung grasslands")
-                .isCover(true)
-                .sortOrder((short) 1)
-                .uploadedBy(adminId)
-                .build());
+            // Cao Bang
+            {"https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=1200&q=80", "Thác Bản Giốc lung linh ánh nắng", "Ban Gioc waterfall"},
+            {"https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80", "Nét hoang sơ thung lũng Cao Bằng", "Cao Bang landscape"},
+            {"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80", "Dòng nước xanh mát lượn lách", "Cao Bang river valley"},
+            {"https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1200&q=80", "Cầu tre nhỏ bắc qua suối", "Cao Bang rustic bridge"},
+            {"https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1200&q=80", "Núi non trùng điệp Cao Bằng", "Cao Bang green hills"},
 
-        tourImageRepository.save(TourImage.builder()
-                .tour(mapiLeng)
-                .imageUrl("https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80")
-                .caption("Hùng vĩ Mã Pí Lèng Hà Giang")
-                .altText("Ma Pi Leng pass")
-                .isCover(true)
-                .sortOrder((short) 1)
-                .uploadedBy(adminId)
-                .build());
+            // Bach Ma
+            {"https://images.unsplash.com/photo-1542224566-6e85f2e6772f?auto=format&fit=crop&w=1200&q=80", "Vọng Hải Đài ngập trong nắng", "Vong Hai Dai tower view"},
+            {"https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80", "Hồ nước xanh như ngọc tại Ngũ Hồ", "Bach Ma Ngu Ho lakes"},
+            {"https://images.unsplash.com/photo-1432406776043-6c76db202812?auto=format&fit=crop&w=1200&q=80", "Thác Đỗ Quyên cuồn cuộn đổ", "Bach Ma Do Quyen waterfall"},
+            {"https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1200&q=80", "Rừng nguyên sinh Bạch Mã", "Bach Ma rainforest"},
+            {"https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1200&q=80", "Những cây cổ thụ bám rễ đá", "Bach Ma ancient forest"},
 
+            // Pu Luong
+            {"https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1200&q=80", "Bản làng Thái bình yên Pù Luông", "Pu Luong valley view"},
+            {"https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80", "Bình minh trên những thửa ruộng bậc thang", "Pu Luong rice terraces"},
+            {"https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=1200&q=80", "Nhà sàn ẩn hiện giữa sương mù", "Pu Luong homestay"},
+            {"https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=1200&q=80", "Dòng suối mát len lỏi trong bản", "Pu Luong stream"},
+            {"https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80", "Góc nhìn từ đỉnh núi Pù Luông", "Pu Luong peak view"},
+
+            // Chu Yang Sin
+            {"https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1200&q=80", "Chư Yang Sin hoang sơ kỳ bí", "Chu Yang Sin mountain"},
+            {"https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1200&q=80", "Rừng lá kim độc đáo trên tuyến", "Chu Yang Sin pine trees"},
+            {"https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80", "Đoạn dốc thẳng đứng đá phủ rêu", "Chu Yang Sin mossy trail"},
+            {"https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=1200&q=80", "Đỉnh núi mờ sương Chư Yang Sin", "Chu Yang Sin peak foggy"},
+            {"https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1200&q=80", "Dòng thác ẩn mình giữa đại ngàn", "Chu Yang Sin waterfall"},
+
+            // Lao Than
+            {"https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1200&q=80", "Biển mây Y Tý Lao Thẩn", "Lao Than clouds sea"},
+            {"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80", "Đón những tia nắng đầu ngày trên đỉnh", "Lao Than summit sunrise"},
+            {"https://images.unsplash.com/photo-1589308078059-be1415eab4c3?auto=format&fit=crop&w=1200&q=80", "Lán nghỉ lưng chừng núi Lao Thẩn", "Lao Than campsite"},
+            {"https://images.unsplash.com/photo-1472214222541-d510753a4907?auto=format&fit=crop&w=1200&q=80", "Đồng cỏ vàng dưới chân đỉnh", "Lao Than dry grass hill"},
+            {"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80", "Hoàng hôn buông giữa mây ngàn", "Lao Than sunset clouds"},
+
+            // Nam Cat Tien
+            {"https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80", "Bàu Sấu - Trái tim rừng Nam Cát Tiên", "Bau Sau ramsar wetland"},
+            {"https://images.unsplash.com/photo-1546182990-dffeafbe841d?auto=format&fit=crop&w=1200&q=80", "Động vật hoang dã đi ăn đêm", "Nam Cat Tien nocturnal deer"},
+            {"https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80", "Cầu gỗ đầm lầy tại Bàu Sấu", "Bau Sau wooden boardwalk"},
+            {"https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1200&q=80", "Cây tung cổ thụ hàng trăm năm", "Nam Cat Tien Tung tree"},
+            {"https://images.unsplash.com/photo-1434064511983-18c6dae20ed5?auto=format&fit=crop&w=1200&q=80", "Rừng xanh bao la Nam Cát Tiên", "Nam Cat Tien tropical forest"}
+        };
+
+        int imgIndex = 0;
+        for (Tour tour : tours) {
+            for (short i = 1; i <= 5; i++) {
+                String[] img = imagesData[imgIndex++];
+                tourImageRepository.save(TourImage.builder()
+                        .tour(tour)
+                        .imageUrl(img[0])
+                        .caption(img[1])
+                        .altText(img[2])
+                        .isCover(i == 1)
+                        .sortOrder(i)
+                        .uploadedBy(adminId)
+                        .build());
+            }
+        }
         log.info("[Seed] Tour images created.");
     }
 
     // ────────────────────────────────────────────────────────────────────────────
-    // Equipment Categories
+    // Equipment Categories & 15 Equipments Seeding
     // ────────────────────────────────────────────────────────────────────────────
 
     private void seedEquipmentCategories() {
-        String[][] data = {
+        String[][] categoriesData = {
             {"Lều trại",          "camping-tent",      "tent",     "1"},
             {"Túi ngủ",           "sleeping-bag",      "sleep",    "2"},
             {"Gậy & Dụng cụ leo", "trekking-poles",    "stick",    "3"},
@@ -260,26 +282,60 @@ public class DataInitializer implements CommandLineRunner {
             {"Thiết bị an toàn",  "safety-gear",       "helmet",   "6"},
             {"Đèn & Điện",        "lighting",          "torch",    "7"},
         };
-        for (String[] c : data) {
+        List<EquipmentCategory> categories = new ArrayList<>();
+        for (String[] c : categoriesData) {
             EquipmentCategory cat = equipmentCategoryRepository.save(EquipmentCategory.builder()
                     .name(c[0]).slug(c[1]).icon(c[2])
                     .sortOrder(Short.parseShort(c[3])).build());
-
-            equipmentRepository.save(Equipment.builder()
-                    .category(cat)
-                    .name("Trang thiết bị " + c[0] + " cao cấp")
-                    .description("Mô tả cho trang thiết bị " + c[0])
-                    .brand("Naturehike")
-                    .model("NH20ZP015")
-                    .pricePerDay(new BigDecimal("50000"))
-                    .depositAmount(new BigDecimal("200000"))
-                    .totalStock((short) 50)
-                    .availableStock((short) 50)
-                    .condition(EquipmentCondition.GOOD)
-                    .isActive(true)
-                    .build());
+            categories.add(cat);
         }
-        log.info("[Seed] {} equipment categories and sample equipments created", data.length);
+
+        // Seed exactly 15 equipments: 10 active, 5 inactive (retired)
+        // Category 1: Lều trại
+        seedEquipment(categories.get(0), "Lều 2 người Naturehike", "Naturehike", "NH20ZP015", "50000", "200000", (short)50, EquipmentCondition.GOOD, true);
+        seedEquipment(categories.get(0), "Lều 4 người Coleman", "Coleman", "CL-4P", "80000", "300000", (short)30, EquipmentCondition.EXCELLENT, true);
+        seedEquipment(categories.get(0), "Lều đơn siêu nhẹ Naturehike", "Naturehike", "NH-SINGLE", "40000", "150000", (short)10, EquipmentCondition.RETIRED, false);
+
+        // Category 2: Túi ngủ
+        seedEquipment(categories.get(1), "Túi ngủ lông vũ Naturehike", "Naturehike", "NH19D015", "30000", "100000", (short)40, EquipmentCondition.EXCELLENT, true);
+        seedEquipment(categories.get(1), "Túi ngủ bông ấm áp TrailViet", "TrailViet", "TV-SLEEP", "20000", "80000", (short)60, EquipmentCondition.GOOD, true);
+
+        // Category 3: Gậy & Dụng cụ leo
+        seedEquipment(categories.get(2), "Gậy trekking Carbon Naturehike", "Naturehike", "NH17D012-D", "15000", "50000", (short)100, EquipmentCondition.GOOD, true);
+        seedEquipment(categories.get(2), "Gậy trekking nhôm Đăng Sơn", "Đăng Sơn", "DS-POLE", "10000", "30000", (short)20, EquipmentCondition.RETIRED, false);
+
+        // Category 4: Balo
+        seedEquipment(categories.get(3), "Balo trekking Deuter 50L", "Deuter", "ACT-LITE-50", "60000", "250000", (short)25, EquipmentCondition.EXCELLENT, true);
+        seedEquipment(categories.get(3), "Balo trekking Osprey 65L", "Osprey", "AETHER-65", "70000", "300000", (short)20, EquipmentCondition.GOOD, true);
+        seedEquipment(categories.get(3), "Balo nhỏ dã ngoại 20L", "Quechua", "QC-20L", "15000", "50000", (short)15, EquipmentCondition.RETIRED, false);
+
+        // Category 5: Quần áo kỹ thuật
+        seedEquipment(categories.get(4), "Áo khoác chống nước Gore-Tex", "The North Face", "TNF-GTX", "40000", "150000", (short)35, EquipmentCondition.GOOD, true);
+        seedEquipment(categories.get(4), "Áo mưa bộ siêu nhẹ TrailViet", "TrailViet", "TV-RAIN", "10000", "30000", (short)10, EquipmentCondition.RETIRED, false);
+
+        // Category 6: Thiết bị an toàn
+        seedEquipment(categories.get(5), "Bộ sơ cứu y tế cá nhân", "FirstAidCo", "FA-BASIC", "10000", "30000", (short)150, EquipmentCondition.EXCELLENT, true);
+        seedEquipment(categories.get(5), "Mũ bảo hiểm leo núi chuyên dụng", "Petzl", "METEOR", "25000", "100000", (short)40, EquipmentCondition.GOOD, true);
+
+        // Category 7: Đèn & Điện
+        seedEquipment(categories.get(6), "Đèn đầu siêu sáng Petzl", "Petzl", "TIKKA", "20000", "80000", (short)5, EquipmentCondition.RETIRED, false);
+
+        log.info("[Seed] {} equipment categories and 15 sample equipments created", categoriesData.length);
+    }
+
+    private void seedEquipment(EquipmentCategory cat, String name, String brand, String model, String price, String deposit, short stock, EquipmentCondition cond, boolean active) {
+        equipmentRepository.save(Equipment.builder()
+                .category(cat)
+                .name(name)
+                .brand(brand)
+                .model(model)
+                .pricePerDay(new BigDecimal(price))
+                .depositAmount(new BigDecimal(deposit))
+                .totalStock(stock)
+                .availableStock(stock)
+                .condition(cond)
+                .isActive(active)
+                .build());
     }
 
     private void seedLocations() {
@@ -305,6 +361,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private SeedUsers seedUsers() {
         String pw = passwordEncoder.encode("Test@1234");
+        List<User> customersList = new ArrayList<>();
 
         // ── Sơn: guide
         User userSon = createUser("son.nguyen@trailviet.vn", "0901234567", pw, false);
@@ -335,15 +392,40 @@ public class DataInitializer implements CommandLineRunner {
         // ── Hoa & Khiêm: customer
         User hoa   = createUser("hoa@example.com",   "0911111111", pw, false);
         createCustomer(hoa, "Nguyễn Thị Hoa", "1992-05-14", FitnessLevel.INTERMEDIATE);
+        customersList.add(hoa);
 
         User khiem = createUser("khiem@example.com", "0922222222", pw, false);
         createCustomer(khiem, "Phạm Gia Khiêm", "1995-09-30", FitnessLevel.BEGINNER);
+        customersList.add(khiem);
+
+        // ── Seed thêm 18 customer nữa để đạt tổng cộng 20 customer
+        String[] firstNames = {"Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý"};
+        String[] middleNames = {"Văn", "Thị", "Hữu", "Đức", "Minh", "Thu", "Ngọc", "Gia", "Thanh", "Hoài", "Anh", "Xuân"};
+        String[] lastNames = {"Anh", "Bình", "Chương", "Duy", "Dương", "Đạt", "Hải", "Khánh", "Linh", "Nam", "Phong", "Quân", "Sơn", "Thảo", "Trang", "Tuấn", "Vy", "Yến"};
+        
+        FitnessLevel[] levels = FitnessLevel.values();
+
+        for (int i = 1; i <= 18; i++) {
+            String email = "customer" + i + "@example.com";
+            String phone = String.format("0933333%03d", i);
+            String fullName = firstNames[i % firstNames.length] + " " + 
+                              middleNames[(i * 3) % middleNames.length] + " " + 
+                              lastNames[(i * 7) % lastNames.length];
+            
+            int birthYear = 1980 + (i * 7) % 26;
+            String dob = birthYear + "-06-15";
+            FitnessLevel fitness = levels[i % levels.length];
+
+            User customerUser = createUser(email, phone, pw, false);
+            createCustomer(customerUser, fullName, dob, fitness);
+            customersList.add(customerUser);
+        }
 
         // ── Admin
         User admin = createUser("admin@trailviet.vn", "0800000001", pw, true);
 
         log.info("[Seed] Users, customers, guides created.");
-        return new SeedUsers(admin, hoa, khiem, son, mai, anh);
+        return new SeedUsers(admin, customersList, son, mai, anh);
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -351,6 +433,9 @@ public class DataInitializer implements CommandLineRunner {
     // ────────────────────────────────────────────────────────────────────────────
 
     private SeedTours seedTours(User admin) {
+        List<Tour> toursList = new ArrayList<>();
+
+        // Tour 1: Fansipan
         Tour fansipan = Tour.builder()
                 .title("Chinh phục Fansipan — Nóc nhà Đông Dương")
                 .slug("fansipan-summit")
@@ -366,8 +451,9 @@ public class DataInitializer implements CommandLineRunner {
                 List.of("Vé cáp treo","Bảo hiểm du lịch","Chi phí cá nhân"),
                 List.of("Sức khoẻ tốt, leo bộ 8h/ngày","Kinh nghiệm trekking qua đêm")
         );
-        fansipan = tourRepository.save(fansipan);
+        toursList.add(tourRepository.save(fansipan));
 
+        // Tour 2: Tà Năng
         Tour taNang = Tour.builder()
                 .title("Trekking Tà Năng – Phan Dũng")
                 .slug("ta-nang-phan-dung")
@@ -383,8 +469,9 @@ public class DataInitializer implements CommandLineRunner {
                 List.of("Bảo hiểm","Chi phí cá nhân"),
                 List.of("Sức khoẻ bình thường","Không yêu cầu kinh nghiệm trước")
         );
-        taNang = tourRepository.save(taNang);
+        toursList.add(tourRepository.save(taNang));
 
+        // Tour 3: Mã Pí Lèng
         Tour mapiLeng = Tour.builder()
                 .title("Mã Pí Lèng — Đèo huyền thoại miền đá xám")
                 .slug("ma-pi-leng-trek")
@@ -400,10 +487,118 @@ public class DataInitializer implements CommandLineRunner {
                 List.of("Di chuyển đến Hà Giang","Bảo hiểm"),
                 List.of("Sức khoẻ tốt","Không sợ độ cao")
         );
-        mapiLeng = tourRepository.save(mapiLeng);
+        toursList.add(tourRepository.save(mapiLeng));
 
-        log.info("[Seed] 3 tours created.");
-        return new SeedTours(fansipan, taNang, mapiLeng);
+        // Tour 4: Cao Bằng
+        Tour caoBang = Tour.builder()
+                .title("Khám phá Thác Bản Giốc & Cao Bằng")
+                .slug("cao-bang-ban-gioc")
+                .shortDescription("Khám phá thác nước biên giới đẹp nhất Việt Nam và các hang động kỳ vĩ.")
+                .difficulty(DifficultyLevel.MODERATE)
+                .durationDays((short) 3).durationNights((short) 2)
+                .distanceKm(new BigDecimal("20.0")).maxElevationM(800)
+                .startLocation("Cao Bằng").endLocation("Cao Bằng")
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(caoBang,
+                List.of("Thác Bản Giốc hùng vĩ","Động Ngườm Ngao kỳ ảo","Hồ Thang Hen thơ mộng"),
+                List.of("HDV địa phương","Phí tham quan các điểm","Khách sạn/Homestay","Bữa ăn chính"),
+                List.of("Vé máy bay/xe khách đến Cao Bằng","Bảo hiểm du lịch","Nước uống tự mua"),
+                List.of("Sức khỏe bình thường","Khả năng đi bộ 4-5 tiếng/ngày")
+        );
+        toursList.add(tourRepository.save(caoBang));
+
+        // Tour 5: Bạch Mã
+        Tour bachMa = Tour.builder()
+                .title("Khám phá Vườn Quốc Gia Bạch Mã")
+                .slug("bach-ma-national-park")
+                .shortDescription("Khám phá hệ sinh thái đa dạng và chinh phục Vọng Hải Đài, Ngũ Hồ.")
+                .difficulty(DifficultyLevel.EASY)
+                .durationDays((short) 2).durationNights((short) 1)
+                .distanceKm(new BigDecimal("15.0")).maxElevationM(1400)
+                .startLocation("Huế").endLocation("Huế")
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(bachMa,
+                List.of("Vọng Hải Đài ngắm toàn cảnh vịnh Lăng Cô","Ngũ Hồ trong vắt mát lạnh","Thác Đỗ Quyên cao 300m"),
+                List.of("HDV","Xe đưa đón từ Huế","Khách sạn tại Bạch Mã Summit","Ăn sáng, trưa, tối"),
+                List.of("Chi phí cá nhân","Bảo hiểm du lịch"),
+                List.of("Sức khỏe cơ bản","Thích hợp cho gia đình và nhóm bạn")
+        );
+        toursList.add(tourRepository.save(bachMa));
+
+        // Tour 6: Pù Luông
+        Tour puLuong = Tour.builder()
+                .title("Hành trình Pù Luông xanh mướt")
+                .slug("pu-luong-valley")
+                .shortDescription("Trekking xuyên qua những bản làng Thái cổ và ruộng bậc thang tầng tầng lớp lớp.")
+                .difficulty(DifficultyLevel.EASY)
+                .durationDays((short) 2).durationNights((short) 1)
+                .distanceKm(new BigDecimal("18.0")).maxElevationM(900)
+                .startLocation("Thanh Hóa").endLocation("Thanh Hóa")
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(puLuong,
+                List.of("Ruộng bậc thang thung lũng Bản Kho Mường","Bản Đôn mộc mạc yên bình","Chợ phiên Phố Đoàn độc đáo"),
+                List.of("HDV bản địa","Homestay nhà sàn truyền thống","Bữa ăn ẩm thực Thái","Nước uống chặng đi"),
+                List.of("Phương tiện đến Thanh Hóa","Bảo hiểm du lịch","Tiền tip cho HDV"),
+                List.of("Sức khỏe dẻo dai","Không yêu cầu kỹ năng leo núi")
+        );
+        toursList.add(tourRepository.save(puLuong));
+
+        // Tour 7: Chư Yang Sin
+        Tour chuYangSin = Tour.builder()
+                .title("Chinh phục đỉnh Chư Yang Sin")
+                .slug("chu-yang-sin-summit")
+                .shortDescription("Thử thách giới hạn bản thân với đỉnh núi cao thứ nhì miền Nam Việt Nam.")
+                .difficulty(DifficultyLevel.HARD)
+                .durationDays((short) 5).durationNights((short) 4)
+                .distanceKm(new BigDecimal("50.0")).maxElevationM(2442)
+                .startLocation("Đắk Lắk").endLocation("Đắk Lắk")
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(chuYangSin,
+                List.of("Chinh phục đỉnh 2442m hoang sơ","Xuyên qua rừng lá kim á nhiệt đới","Hệ thực vật đặc hữu quý hiếm"),
+                List.of("HDV chuyên nghiệp & Porter mang đồ chung","Lều trại cao cấp","Bữa ăn giàu năng lượng trên tuyến","Túi ngủ ấm áp"),
+                List.of("Di chuyển đến Buôn Ma Thuột","Bảo hiểm du lịch cá nhân","Đồ cá nhân tự mang"),
+                List.of("Thể lực xuất sắc, kiểm tra y tế trước tour","Kinh nghiệm trekking ít nhất 2 chuyến dài ngày")
+        );
+        toursList.add(tourRepository.save(chuYangSin));
+
+        // Tour 8: Lao Thẩn
+        Tour laoThan = Tour.builder()
+                .title("Săn mây đỉnh Lao Thẩn")
+                .slug("lao-than-cloud-hunting")
+                .shortDescription("Chinh phục đỉnh Lao Thẩn 2,860m - địa điểm săn mây lý tưởng hàng đầu vùng Tây Bắc.")
+                .difficulty(DifficultyLevel.MODERATE)
+                .durationDays((short) 2).durationNights((short) 1)
+                .distanceKm(new BigDecimal("16.0")).maxElevationM(2860)
+                .startLocation("Y Tý, Lào Cai").endLocation("Y Tý, Lào Cai")
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(laoThan,
+                List.of("Biển mây Y Tý Lao Thẩn","Đón bình minh trên đỉnh 2860m","Hoàng hôn rực rỡ từ lán nghỉ"),
+                List.of("HDV & Porter","Lều trại tại điểm lán nghỉ","Bữa ăn chính phong cách Tây Bắc","Nước uống nóng tại lán"),
+                List.of("Xe giường nằm Hà Nội - Lào Cai & xe trung chuyển Y Tý","Chi phí cá nhân ngoài chương trình"),
+                List.of("Sức khỏe tốt, chịu được không khí lạnh đêm cao nguyên")
+        );
+        toursList.add(tourRepository.save(laoThan));
+
+        // Tour 9: Nam Cát Tiên
+        Tour namCatTien = Tour.builder()
+                .title("Thám hiểm Rừng Nam Cát Tiên")
+                .slug("nam-cat-tien-expedition")
+                .shortDescription("Khám phá rừng mưa nhiệt đới, trekking ngắm thú đêm và Bàu Sấu.")
+                .difficulty(DifficultyLevel.EASY)
+                .durationDays((short) 3).durationNights((short) 2)
+                .distanceKm(new BigDecimal("30.0")).maxElevationM(200)
+                .startLocation("Đồng Nai").endLocation("Đồng Nai")
+                .status(TourStatus.ACTIVE).createdBy(admin.getId()).build();
+        mapAttributes(namCatTien,
+                List.of("Bàu Sấu - khu đất ngập nước Ramsar thế giới","Ngắm thú hoang dã đi ăn đêm bằng xe jeep","Hàng cây tùng cổ thụ nghìn năm tuổi"),
+                List.of("HDV kiểm lâm","Vé tham quan Bàu Sấu & Rừng Quốc Gia","Lưu trú phòng bungalow/lều","Xe jeep vận chuyển chặng xa"),
+                List.of("Chi phí ăn uống tự túc một số bữa","Bảo hiểm du lịch"),
+                List.of("Sức khỏe dẻo dai đi bộ đường bằng phẳng","Phù hợp cho mọi lứa tuổi yêu thiên nhiên")
+        );
+        toursList.add(tourRepository.save(namCatTien));
+
+        log.info("[Seed] Exactly 9 active tours created.");
+        return new SeedTours(toursList);
     }
 
     private void mapAttributes(Tour tour, List<String> highlights, List<String> includes, List<String> excludes, List<String> reqs) {
@@ -586,166 +781,322 @@ public class DataInitializer implements CommandLineRunner {
         log.info("[Seed] Itinerary waypoints for Fansipan created.");
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // Departures
-    // ────────────────────────────────────────────────────────────────────────────
+    private void seedTourItineraryAndWaypoints(Tour tour) {
+        int D = tour.getDurationDays();
+        List<TourWaypoint> waypoints = new ArrayList<>();
+        
+        // 1. Trailhead (Day 1 start)
+        TourWaypoint trailhead = wp(tour, tour.getTitle() + " - Điểm xuất phát", tour.getSlug() + "-start", 1,
+                WaypointType.TRAILHEAD, "21.0285", "105.8542", 100, 1, false,
+                "Điểm tập kết đoàn và khởi hành", "Kiểm tra danh sách thành viên trước khi đi",
+                true, true, true, true,
+                WaterSourceType.VILLAGE_TAP, "Nước sạch tại vòi",
+                null, null, "115", "Đường bộ cứu hộ", "Bệnh viện đa khoa gần nhất", "5.0", false);
+        waypoints.add(trailhead);
 
-    private TourDeparture seedDeparture(
-            Tour tour, String depDate, String retDate, String cutDate,
-            String price, short maxGroup, short bookedSlots, boolean allowJoin,
-            String meetingPoint, String weatherSummary, String weatherIcon,
-            short tempMin, short tempMax, DepartureStatus status, Guide leadGuide) {
+        // 2. Intermediate points and campsites
+        for (int i = 1; i <= D; i++) {
+            TourWaypoint restStop = wp(tour, tour.getTitle() + " - Trạm nghỉ Day " + i, tour.getSlug() + "-rest-" + i, waypoints.size() + 1,
+                    WaypointType.REST_STOP, "21.03", "105.86", 200, i, false,
+                    "Trạm dừng chân nghỉ ngơi giữa ngày " + i, "Nhắc nhở đoàn bổ sung nước",
+                    false, true, true, false,
+                    WaterSourceType.STREAM, "Nước suối tự nhiên",
+                    null, null, "115", "Đường mòn", "Bệnh viện đa khoa gần nhất", "10.0", false);
+            waypoints.add(restStop);
 
-        TourDeparture dep = departureRepository.saveAndFlush(TourDeparture.builder()
-                .tour(tour)
-                .departureDate(LocalDate.parse(depDate))
-                .returnDate(LocalDate.parse(retDate))
-                .cutoffDate(LocalDate.parse(cutDate))
-                .pricePerPerson(new BigDecimal(price))
-                .maxGroupSize(maxGroup).minGroupSize((short) 2)
-                .bookedSlots(bookedSlots).allowJoinTour(allowJoin)
-                .meetingPoint(meetingPoint)
-                .weatherSummary(weatherSummary).weatherIcon(weatherIcon)
-                .tempMinC(tempMin).tempMaxC(tempMax)
-                .weatherUpdatedAt(LocalDateTime.now())
-                .status(status).build());
+            if (i < D) {
+                TourWaypoint campsite = wp(tour, tour.getTitle() + " - Điểm hạ trại Day " + i, tour.getSlug() + "-camp-" + i, waypoints.size() + 1,
+                        WaypointType.CAMP_SITE, "21.04", "105.87", 300, i, true,
+                        "Điểm cắm trại nghỉ qua đêm ngày " + i, "Hỗ trợ khách dựng lều trước khi trời tối",
+                        false, false, false, true,
+                        WaterSourceType.STREAM, "Nước suối",
+                        AccommodationType.TENT_CAMPING, (short) 15, "115", "Đường mòn", "Bệnh viện đa khoa gần nhất", "15.0", false);
+                waypoints.add(campsite);
+            }
+        }
 
-        departureGuideRepository.saveAndFlush(DepartureGuide.builder()
-                .id(new DepartureGuideId(dep.getId(), leadGuide.getId()))
-                .departure(dep).guide(leadGuide)
-                .role(GuideRoleInTour.LEAD)
-                .confirmedAt(LocalDateTime.now()).build());
+        // 3. Finish Point (Day D end)
+        TourWaypoint finish = wp(tour, tour.getTitle() + " - Điểm kết thúc", tour.getSlug() + "-end", waypoints.size() + 1,
+                WaypointType.TRAILHEAD, "21.05", "105.88", 100, D, true,
+                "Điểm kết thúc hành trình", "Kiểm tra hành lý và thiết bị thuê trước khi chia tay đoàn",
+                true, true, true, false,
+                WaterSourceType.VILLAGE_TAP, "Nước sạch tại vòi",
+                null, null, "115", "Đường bộ cứu hộ", "Bệnh viện đa khoa gần nhất", "5.0", false);
+        waypoints.add(finish);
 
-        return dep;
+        int wpIndex = 0;
+        for (short d = 1; d <= D; d++) {
+            TourWaypoint startWp = waypoints.get(wpIndex);
+            TourWaypoint midWp = waypoints.get(wpIndex + 1);
+            TourWaypoint endWp = waypoints.get(wpIndex + 2);
+
+            TourDailyItinerary dayIt = itineraryRepository.save(TourDailyItinerary.builder()
+                    .tour(tour).dayNumber(d)
+                    .dayTitle("Ngày " + d + ": Khám phá " + tour.getTitle())
+                    .dayDescription("Hành trình ngày thứ " + d + " của chặng trekking.")
+                    .startWaypoint(startWp).endWaypoint(endWp)
+                    .overnightWaypoint(d < D ? endWp : null)
+                    .distanceKm(tour.getDistanceKm().divide(BigDecimal.valueOf(D), 1, java.math.RoundingMode.HALF_UP))
+                    .elevationGainM(100).elevationLossM(100)
+                    .walkingHoursMin(new BigDecimal("5.0")).walkingHoursMax(new BigDecimal("7.0"))
+                    .dayDifficulty(tour.getDifficulty())
+                    .suggestedStartTime(LocalTime.of(8, 0)).suggestedEndTime(LocalTime.of(16, 30))
+                    .mealsIncluded(List.of(
+                            Map.of("type", "breakfast", "location", "tại trại"),
+                            Map.of("type", "lunch",     "location", "trên đường đi"),
+                            Map.of("type", "dinner",    "location", "tại trại")))
+                    .mealNotes("Bữa ăn tiêu chuẩn do HDV chuẩn bị.")
+                    .overnightNotes(d < D ? "Nghỉ ngơi lấy lại sức." : "Kết thúc hành trình.")
+                    .safetyNotes("Đi theo nhóm, không tự ý rời đoàn.")
+                    .build());
+
+            iw(dayIt, startWp, 1, true, "Xuất phát ngày " + d, "08:00");
+            iw(dayIt, midWp, 2, true, "Nghỉ ngơi và dùng bữa trưa", "12:00");
+            iw(dayIt, endWp, 3, true, "Kết thúc chặng ngày " + d, "16:30");
+
+            wpIndex += 2;
+        }
     }
 
-    private void updateCompletedDeparture(TourDeparture dep) {
-        dep.setActualStartAt(LocalDateTime.of(2025, 4, 10, 6, 15, 0));
-        dep.setActualEndAt(LocalDateTime.of(2025, 4, 12, 16, 30, 0));
-        dep.setActualParticipants((short) 10);
-        dep.setDebriefNotes("Chuyến đi thuận lợi, thời tiết đẹp. Cả đoàn lên đỉnh thành công.");
-        dep.setIncidentLog(List.of(Map.of(
-                "time",       "2025-04-11T09:30:00+07:00",
-                "type",       "minor_injury",
-                "note",       "Thành viên bị đau gối phải khi xuống dốc",
-                "handled_by", "son.nguyen@trailviet.vn",
-                "resolved",   true)));
-        departureRepository.save(dep);
+    private void seedDeparturesBookingsReviewsWeatherAndRentals(SeedUsers users, List<Tour> tours) {
+        List<Guide> guides = List.of(users.son(), users.mai(), users.anh());
+        List<User> customers = users.customers();
+
+        List<Equipment> activeEquipments = equipmentRepository.findAll().stream()
+                .filter(Equipment::getIsActive)
+                .collect(java.util.stream.Collectors.toList());
+
+        for (int tourIndex = 0; tourIndex < tours.size(); tourIndex++) {
+            Tour tour = tours.get(tourIndex);
+            Guide leadGuide = guides.get(tourIndex % guides.size());
+
+            // ─── 1. PAST COMPLETED DEPARTURE (Đầy đoàn 8 khách) ─────────────────────────
+            LocalDate pastDepDate = LocalDate.now().minusDays(15 + tourIndex * 2);
+            LocalDate pastRetDate = pastDepDate.plusDays(tour.getDurationDays() - 1);
+            LocalDate pastCutDate = pastDepDate.minusDays(3);
+
+            TourDeparture pastDep = departureRepository.saveAndFlush(TourDeparture.builder()
+                    .tour(tour)
+                    .departureDate(pastDepDate)
+                    .returnDate(pastRetDate)
+                    .cutoffDate(pastCutDate)
+                    .pricePerPerson(tour.getDifficulty() == DifficultyLevel.HARD ? new BigDecimal("2500000") : new BigDecimal("1500000"))
+                    .maxGroupSize((short) 8)
+                    .minGroupSize((short) 2)
+                    .bookedSlots((short) 8)
+                    .allowJoinTour(true)
+                    .meetingPoint(tour.getStartLocation() + " lúc 6:00 AM")
+                    .weatherSummary("Thời tiết thuận lợi suốt hành trình")
+                    .weatherIcon("sunny")
+                    .tempMinC((short) 15)
+                    .tempMaxC((short) 25)
+                    .weatherUpdatedAt(LocalDateTime.now())
+                    .status(DepartureStatus.COMPLETED)
+                    .actualStartAt(pastDepDate.atTime(6, 15))
+                    .actualEndAt(pastRetDate.atTime(16, 30))
+                    .actualParticipants((short) 8)
+                    .debriefNotes("Đoàn đi an toàn, sức khỏe tốt, hoàn thành đúng lịch trình.")
+                    .build());
+
+            departureGuideRepository.saveAndFlush(DepartureGuide.builder()
+                    .id(new DepartureGuideId(pastDep.getId(), leadGuide.getId()))
+                    .departure(pastDep)
+                    .guide(leadGuide)
+                    .role(GuideRoleInTour.LEAD)
+                    .confirmedAt(LocalDateTime.now().minusDays(20))
+                    .build());
+
+            seedWeatherForDeparture(pastDep, tour);
+
+            for (int bIndex = 0; bIndex < 8; bIndex++) {
+                User customerUser = customers.get((tourIndex * 8 + bIndex) % customers.size());
+
+                Booking booking = bookingRepository.save(Booking.builder()
+                        .bookingCode("TV-" + pastDepDate.toString().replace("-", "") + "-" + tour.getId().toString().substring(0, 4) + "-" + bIndex)
+                        .user(customerUser)
+                        .departure(pastDep)
+                        .numParticipants((short) 1)
+                        .priceSnapshot(pastDep.getPricePerPerson())
+                        .subtotalTour(pastDep.getPricePerPerson())
+                        .subtotalEquipment(BigDecimal.ZERO)
+                        .totalPrice(pastDep.getPricePerPerson())
+                        .status(BookingStatus.COMPLETED)
+                        .paidAt(pastDepDate.minusDays(10).atTime(10, 0))
+                        .bookedAt(pastDepDate.minusDays(10).atTime(10, 0))
+                        .build());
+
+                if (!activeEquipments.isEmpty()) {
+                    Equipment eq = activeEquipments.get((tourIndex + bIndex) % activeEquipments.size());
+                    BigDecimal rentalPrice = eq.getPricePerDay().multiply(BigDecimal.valueOf(tour.getDurationDays()));
+                    
+                    equipmentRentalRepository.save(EquipmentRental.builder()
+                            .booking(booking)
+                            .equipment(eq)
+                            .quantity((short) 1)
+                            .rentalDays((short) tour.getDurationDays())
+                            .pricePerDay(eq.getPricePerDay())
+                            .subtotal(rentalPrice)
+                            .returnedAt(pastRetDate.atTime(16, 30))
+                            .returnCondition(EquipmentCondition.GOOD)
+                            .damageFee(BigDecimal.ZERO)
+                            .notes("Đã hoàn trả trong tình trạng tốt.")
+                            .createdAt(booking.getBookedAt())
+                            .build());
+
+                    booking.setSubtotalEquipment(rentalPrice);
+                    booking.setTotalPrice(booking.getSubtotalTour().add(rentalPrice));
+                    bookingRepository.save(booking);
+                }
+
+                reviewRepository.save(Review.builder()
+                        .user(customerUser)
+                        .booking(booking)
+                        .tour(tour)
+                        .departure(pastDep)
+                        .guide(leadGuide)
+                        .overallRating((short) (bIndex % 2 == 0 ? 5 : 4))
+                        .guideRating((short) 5)
+                        .sceneryRating((short) 5)
+                        .safetyRating((short) 5)
+                        .valueRating((short) (bIndex % 3 == 0 ? 4 : 5))
+                        .difficultyRating((short) (tour.getDifficulty() == DifficultyLevel.HARD ? 4 : 3))
+                        .title("Trải nghiệm tuyệt vời chặng " + tour.getTitle())
+                        .comment("Một chuyến đi tuyệt vời và đáng nhớ cùng TrailViet. Hướng dẫn viên rất nhiệt tình và chu đáo!")
+                        .isApproved(true)
+                        .build());
+            }
+
+            // ─── 2. TWO FUTURE DEPARTURES (Đợt tương lai: trống dưới 10 chỗ - seed 3 chỗ) ────────────────────────────
+            LocalDate futDepDate1 = LocalDate.now().plusDays(6);
+            LocalDate futRetDate1 = futDepDate1.plusDays(tour.getDurationDays() - 1);
+            LocalDate futCutDate1 = futDepDate1.minusDays(3);
+
+            TourDeparture futDep1 = departureRepository.saveAndFlush(TourDeparture.builder()
+                    .tour(tour)
+                    .departureDate(futDepDate1)
+                    .returnDate(futRetDate1)
+                    .cutoffDate(futCutDate1)
+                    .pricePerPerson(tour.getDifficulty() == DifficultyLevel.HARD ? new BigDecimal("2500000") : new BigDecimal("1500000"))
+                    .maxGroupSize((short) 12)
+                    .minGroupSize((short) 2)
+                    .bookedSlots((short) 3) // Trống 9 chỗ (dưới 10)
+                    .allowJoinTour(true)
+                    .meetingPoint(tour.getStartLocation() + " lúc 6:30 AM")
+                    .weatherSummary("Dự báo nắng ráo, thời tiết đẹp")
+                    .weatherIcon("sunny")
+                    .tempMinC((short) 16)
+                    .tempMaxC((short) 26)
+                    .weatherUpdatedAt(LocalDateTime.now())
+                    .status(DepartureStatus.OPEN)
+                    .build());
+
+            departureGuideRepository.saveAndFlush(DepartureGuide.builder()
+                    .id(new DepartureGuideId(futDep1.getId(), leadGuide.getId()))
+                    .departure(futDep1)
+                    .guide(leadGuide)
+                    .role(GuideRoleInTour.LEAD)
+                    .confirmedAt(LocalDateTime.now())
+                    .build());
+
+            for (int bIndex = 0; bIndex < 3; bIndex++) {
+                User customerUser = customers.get((tourIndex * 3 + bIndex) % customers.size());
+                bookingRepository.save(Booking.builder()
+                        .bookingCode("TV-" + futDepDate1.toString().replace("-", "") + "-" + tour.getId().toString().substring(0, 4) + "-" + bIndex)
+                        .user(customerUser)
+                        .departure(futDep1)
+                        .numParticipants((short) 1)
+                        .priceSnapshot(futDep1.getPricePerPerson())
+                        .subtotalTour(futDep1.getPricePerPerson())
+                        .subtotalEquipment(BigDecimal.ZERO)
+                        .totalPrice(futDep1.getPricePerPerson())
+                        .status(BookingStatus.CONFIRMED)
+                        .paidAt(LocalDateTime.now().minusHours(12))
+                        .bookedAt(LocalDateTime.now().minusHours(12))
+                        .build());
+            }
+
+            LocalDate futDepDate2 = LocalDate.now().plusDays(9);
+            LocalDate futRetDate2 = futDepDate2.plusDays(tour.getDurationDays() - 1);
+            LocalDate futCutDate2 = futDepDate2.minusDays(3);
+
+            TourDeparture futDep2 = departureRepository.saveAndFlush(TourDeparture.builder()
+                    .tour(tour)
+                    .departureDate(futDepDate2)
+                    .returnDate(futRetDate2)
+                    .cutoffDate(futCutDate2)
+                    .pricePerPerson(tour.getDifficulty() == DifficultyLevel.HARD ? new BigDecimal("2500000") : new BigDecimal("1500000"))
+                    .maxGroupSize((short) 12)
+                    .minGroupSize((short) 2)
+                    .bookedSlots((short) 3) // Trống 9 chỗ (dưới 10)
+                    .allowJoinTour(true)
+                    .meetingPoint(tour.getStartLocation() + " lúc 6:30 AM")
+                    .weatherSummary("Dự báo nắng ráo, thời tiết đẹp")
+                    .weatherIcon("sunny")
+                    .tempMinC((short) 16)
+                    .tempMaxC((short) 26)
+                    .weatherUpdatedAt(LocalDateTime.now())
+                    .status(DepartureStatus.OPEN)
+                    .build());
+
+            departureGuideRepository.saveAndFlush(DepartureGuide.builder()
+                    .id(new DepartureGuideId(futDep2.getId(), leadGuide.getId()))
+                    .departure(futDep2)
+                    .guide(leadGuide)
+                    .role(GuideRoleInTour.LEAD)
+                    .confirmedAt(LocalDateTime.now())
+                    .build());
+
+            for (int bIndex = 0; bIndex < 3; bIndex++) {
+                User customerUser = customers.get((tourIndex * 3 + bIndex + 5) % customers.size());
+                bookingRepository.save(Booking.builder()
+                        .bookingCode("TV-" + futDepDate2.toString().replace("-", "") + "-" + tour.getId().toString().substring(0, 4) + "-" + bIndex)
+                        .user(customerUser)
+                        .departure(futDep2)
+                        .numParticipants((short) 1)
+                        .priceSnapshot(futDep2.getPricePerPerson())
+                        .subtotalTour(futDep2.getPricePerPerson())
+                        .subtotalEquipment(BigDecimal.ZERO)
+                        .totalPrice(futDep2.getPricePerPerson())
+                        .status(BookingStatus.CONFIRMED)
+                        .paidAt(LocalDateTime.now().minusHours(6))
+                        .bookedAt(LocalDateTime.now().minusHours(6))
+                        .build());
+            }
+        }
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // Weather Daily (Fansipan departure 2025-06-02)
-    // ────────────────────────────────────────────────────────────────────────────
+    private void seedWeatherForDeparture(TourDeparture dep, Tour tour) {
+        int duration = tour.getDurationDays();
+        for (short d = 1; d <= duration; d++) {
+            final short dayNum = d;
+            TourDailyItinerary it = itineraryRepository
+                    .findByTourIdAndDayNumber(tour.getId(), dayNum).orElse(null);
 
-    private void seedWeatherForDeparture(TourDeparture dep, Tour fansipan) {
-        TourDailyItinerary it1 = itineraryRepository
-                .findByTourIdAndDayNumber(fansipan.getId(), (short) 1).orElse(null);
-        TourDailyItinerary it2 = itineraryRepository
-                .findByTourIdAndDayNumber(fansipan.getId(), (short) 2).orElse(null);
-        TourDailyItinerary it3 = itineraryRepository
-                .findByTourIdAndDayNumber(fansipan.getId(), (short) 3).orElse(null);
-
-        weatherDailyRepository.save(DepartureWeatherDaily.builder()
-                .departure(dep).dayNumber((short) 1)
-                .forecastDate(dep.getDepartureDate()).itinerary(it1)
-                .locationLabel("Trạm Tôn (1900m) → Bãi cắm trại (2800m)").elevationM(2200)
-                .weatherSummary("Nắng sáng sớm, mây tích chiều tối").weatherIcon("partly-cloudy")
-                .tempMinC((short) 14).tempMaxC((short) 22)
-                .feelsLikeMinC((short) 10).feelsLikeMaxC((short) 18)
-                .precipitationMm(new BigDecimal("1.5")).precipitationProb((short) 20)
-                .windSpeedKmh((short) 15).windGustKmh((short) 25)
-                .humidityPct((short) 72).visibilityKm(new BigDecimal("8.0")).uvIndex((short) 7)
-                .warningLevel(WarningLevel.INFO).dataSource("openweathermap").build());
-
-        weatherDailyRepository.save(DepartureWeatherDaily.builder()
-                .departure(dep).dayNumber((short) 2)
-                .forecastDate(dep.getDepartureDate().plusDays(1)).itinerary(it2)
-                .locationLabel("Bãi cắm trại (2800m) → Đỉnh Fansipan (3147m)").elevationM(3147)
-                .weatherSummary("Sáng sớm sương mù dày, quang dần sau 8h. Gió mạnh trên đỉnh.").weatherIcon("foggy")
-                .tempMinC((short) 8).tempMaxC((short) 15)
-                .feelsLikeMinC((short) 4).feelsLikeMaxC((short) 10)
-                .precipitationMm(BigDecimal.ZERO).precipitationProb((short) 10)
-                .windSpeedKmh((short) 30).windGustKmh((short) 45)
-                .humidityPct((short) 85).visibilityKm(new BigDecimal("1.5")).uvIndex((short) 9)
-                .weatherWarning("Sương mù sáng, tầm nhìn < 50m trước 7:00. Gió giật 45km/h trên đỉnh — cần áo gió.")
-                .warningLevel(WarningLevel.CAUTION).dataSource("openweathermap").build());
-
-        weatherDailyRepository.save(DepartureWeatherDaily.builder()
-                .departure(dep).dayNumber((short) 3)
-                .forecastDate(dep.getDepartureDate().plusDays(2)).itinerary(it3)
-                .locationLabel("Bãi cắm trại (2800m) → Trạm Tôn (1900m)").elevationM(1900)
-                .weatherSummary("Nắng đẹp suốt ngày, xuống núi thuận lợi").weatherIcon("sunny")
-                .tempMinC((short) 12).tempMaxC((short) 20)
-                .feelsLikeMinC((short) 10).feelsLikeMaxC((short) 18)
-                .precipitationMm(BigDecimal.ZERO).precipitationProb((short) 5)
-                .windSpeedKmh((short) 10).windGustKmh((short) 20)
-                .humidityPct((short) 60).visibilityKm(new BigDecimal("12.0")).uvIndex((short) 6)
-                .warningLevel(WarningLevel.INFO).dataSource("openweathermap").build());
-
-        log.info("[Seed] 3 daily weather entries for departure 2025-06-02 created.");
+            weatherDailyRepository.save(DepartureWeatherDaily.builder()
+                    .departure(dep)
+                    .dayNumber(dayNum)
+                    .forecastDate(dep.getDepartureDate().plusDays(dayNum - 1))
+                    .itinerary(it)
+                    .locationLabel(tour.getTitle() + " - Chặng ngày " + dayNum)
+                    .elevationM(it != null && it.getStartWaypoint() != null ? it.getStartWaypoint().getElevationM() : 100)
+                    .weatherSummary("Trời nắng ráo, nhiệt độ ôn hòa, tầm nhìn xa tốt.")
+                    .weatherIcon("sunny")
+                    .tempMinC((short) 16)
+                    .tempMaxC((short) 24)
+                    .feelsLikeMinC((short) 14)
+                    .feelsLikeMaxC((short) 22)
+                    .precipitationMm(BigDecimal.ZERO)
+                    .precipitationProb((short) 5)
+                    .windSpeedKmh((short) 12)
+                    .windGustKmh((short) 18)
+                    .humidityPct((short) 65)
+                    .visibilityKm(new BigDecimal("12.0"))
+                    .uvIndex((short) 6)
+                    .warningLevel(WarningLevel.INFO)
+                    .dataSource("openweathermap")
+                    .build());
+        }
     }
-
-    // ────────────────────────────────────────────────────────────────────────────
-    // Bookings + Reviews
-    // ────────────────────────────────────────────────────────────────────────────
-
-    private void seedBookingsAndReviews(SeedUsers users, Tour fansipan,
-                                         TourDeparture dep10, TourDeparture dep5,
-                                         TourDeparture dep6) {
-        // Booking 1 — Hoa đi Fansipan (completed)
-        Booking b1 = bookingRepository.save(Booking.builder()
-                .bookingCode("TV-20250410-0001")
-                .user(users.hoa()).departure(dep10)
-                .numParticipants((short) 2)
-                .priceSnapshot(new BigDecimal("2600000"))
-                .subtotalTour(new BigDecimal("5200000"))
-                .subtotalEquipment(new BigDecimal("460000"))
-                .totalPrice(new BigDecimal("5660000"))
-                .status(BookingStatus.COMPLETED)
-                .paidAt(LocalDateTime.now().minusDays(50)).build());
-
-        // Booking 2 — Khiêm đi Tà Năng (confirmed)
-        bookingRepository.save(Booking.builder()
-                .bookingCode("TV-20250614-0001")
-                .user(users.khiem()).departure(dep5)
-                .numParticipants((short) 1)
-                .priceSnapshot(new BigDecimal("1950000"))
-                .subtotalTour(new BigDecimal("1950000"))
-                .subtotalEquipment(new BigDecimal("230000"))
-                .totalPrice(new BigDecimal("2180000"))
-                .status(BookingStatus.CONFIRMED)
-                .paidAt(LocalDateTime.now().minusDays(5)).build());
-
-        // Booking 3 — Hoa đi Mã Pí Lèng (confirmed, join tour)
-        bookingRepository.save(Booking.builder()
-                .bookingCode("TV-20250621-0001")
-                .user(users.hoa()).departure(dep6)
-                .numParticipants((short) 1)
-                .priceSnapshot(new BigDecimal("1500000"))
-                .subtotalTour(new BigDecimal("1500000"))
-                .totalPrice(new BigDecimal("1500000"))
-                .isJoinTour(true).status(BookingStatus.CONFIRMED)
-                .paidAt(LocalDateTime.now().minusDays(3)).build());
-
-        log.info("[Seed] 3 bookings created.");
-
-        // Review của Hoa cho chuyến Fansipan
-        reviewRepository.save(Review.builder()
-                .user(users.hoa()).booking(b1)
-                .tour(fansipan).departure(dep10).guide(users.son())
-                .overallRating((short) 5).guideRating((short) 5)
-                .sceneryRating((short) 5).safetyRating((short) 5)
-                .valueRating((short) 5).difficultyRating((short) 4)
-                .title("Trải nghiệm tuyệt vời, vượt mọi kỳ vọng!")
-                .comment("Chuyến đi hoàn hảo! Anh Sơn xử lý rất chuyên nghiệp khi có thành viên bị đau gối.")
-                .isApproved(true).build());
-
-        log.info("[Seed] 1 review created.");
-    }
-
-    // ────────────────────────────────────────────────────────────────────────────
-    // Private helpers
-    // ────────────────────────────────────────────────────────────────────────────
 
     private User createUser(String email, String phone, String pw, boolean isAdmin) {
         return userRepository.saveAndFlush(User.builder()
@@ -810,28 +1161,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void updateSeededTourImages() {
-        try {
-            tourImageRepository.findAll().forEach(img -> {
-                if (img.getAltText() != null) {
-                    if (img.getAltText().equals("Fansipan summit sunrise")) {
-                        img.setImageUrl("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80");
-                        tourImageRepository.save(img);
-                    } else if (img.getAltText().equals("Hoang Lien Son forest")) {
-                        img.setImageUrl("https://images.unsplash.com/photo-1623090857341-4078f1e0ee34?auto=format&fit=crop&w=1200&q=80");
-                        tourImageRepository.save(img);
-                    } else if (img.getAltText().equals("Ta Nang Phan Dung grasslands")) {
-                        img.setImageUrl("https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80");
-                        tourImageRepository.save(img);
-                    } else if (img.getAltText().equals("Ma Pi Leng pass")) {
-                        img.setImageUrl("https://images.unsplash.com/photo-1605538032432-a9f0c8d9baac?auto=format&fit=crop&w=1200&q=80");
-                        tourImageRepository.save(img);
-                    }
-                }
-            });
-            log.info("[DataInitializer] Đã cập nhật ảnh đẹp cho các địa điểm.");
-        } catch (Exception e) {
-            log.error("[DataInitializer] Lỗi khi cập nhật ảnh đẹp: {}", e.getMessage());
-        }
+        // Không cần thiết vì ảnh đã được seed đầy đủ trong seedTourImages
     }
 
     private void ensureFutureDeparturesForTours() {
@@ -847,7 +1177,6 @@ public class DataInitializer implements CommandLineRunner {
         LocalDate today = LocalDate.now();
 
         for (Tour tour : tours) {
-            // Count upcoming departures for this tour (OPEN or SCHEDULED and in the future)
             long upcomingCount = allDeps.stream()
                     .filter(d -> d.getTour().getId().equals(tour.getId()))
                     .filter(d -> d.getDepartureDate() != null && d.getDepartureDate().isAfter(today))
@@ -859,7 +1188,6 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("[DataInitializer] Tour '{}' ({}) chỉ có {} đợt khởi hành tương lai. Tiến hành bổ sung {} đợt...",
                         tour.getTitle(), tour.getId(), upcomingCount, needed);
 
-                // Collect departures of this tour to copy settings
                 List<TourDeparture> tourDeps = allDeps.stream()
                         .filter(d -> d.getTour().getId().equals(tour.getId()))
                         .collect(java.util.stream.Collectors.toList());
@@ -887,7 +1215,6 @@ public class DataInitializer implements CommandLineRunner {
                     if (sample.getTempMaxC() != null) tempMax = sample.getTempMaxC();
                 }
 
-                // Determine guide to assign
                 Guide leadGuide = guides.get(0);
                 if (!tourDeps.isEmpty()) {
                     for (TourDeparture td : tourDeps) {
@@ -903,7 +1230,6 @@ public class DataInitializer implements CommandLineRunner {
                 while (seeded < needed && daysOffset < 150) {
                     LocalDate candidateDate = today.plusDays(daysOffset);
                     
-                    // Check if this date already exists for this tour
                     boolean dateExists = departureRepository.findByTourIdAndDepartureDate(tour.getId(), candidateDate).isPresent();
                     if (!dateExists) {
                         int duration = tour.getDurationDays() != null && tour.getDurationDays() > 0 ? tour.getDurationDays() : 1;
@@ -946,4 +1272,5 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 }
+
 
