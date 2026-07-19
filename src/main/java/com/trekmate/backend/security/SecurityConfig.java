@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers("/v1/bookings/**").authenticated()
                         .requestMatchers("/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/admin/tours/**").hasAnyRole("GUIDE", "ADMIN")
+                        .requestMatchers("/ai/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
