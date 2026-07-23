@@ -35,3 +35,8 @@ logging:
     com.trekmate: ${LOG_LEVEL_APP}
     org.hibernate.SQL: ${LOG_LEVEL_SQL}
     org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER}
+
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: gemini-3.5-flash

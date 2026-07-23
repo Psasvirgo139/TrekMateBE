@@ -2,7 +2,7 @@ package com.trekmate.backend.service;
 
 import com.trekmate.backend.dto.response.WeatherDayResponse;
 import com.trekmate.backend.model.TourDeparture;
-
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,4 +37,15 @@ public interface WeatherService {
      * @return List dự báo sau refresh
      */
     List<WeatherDayResponse> refreshWeatherForDeparture(UUID departureId);
+
+    /**
+     * Lay du bao thoi tiet tu Open-Meteo API theo toa do GPS.
+     * 
+     * @param lat  Toa do vi do
+     * @param lng  Toa do kinh do
+     * @param days So ngay du bao (toi da 16)
+     * @return Chuoi string chua thong tin thoi tiet doc duoc (co the dua vao prompt
+     *         Gemini)
+     */
+    String getForecastSummary(BigDecimal lat, BigDecimal lng, int days);
 }
