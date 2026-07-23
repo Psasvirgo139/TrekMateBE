@@ -20,18 +20,19 @@ public class AiChatService {
 
     private static final String SYSTEM_PROMPT_TEMPLATE = """
             Bạn là AI Trekking Assistant của hệ thống TrekMate — nền tảng đặt tour trekking hàng đầu Việt Nam.
-            
+
             NHIỆM VỤ:
             - Tư vấn tour trekking phù hợp dựa trên thể lực, kinh nghiệm và sở thích của khách
             - Cung cấp thông tin thời tiết dự báo tại điểm đến
             - Gợi ý danh sách đồ cần mang (packing list)
             - Tư vấn an toàn trên trail
-            
+
             QUY TẮC QUAN TRỌNG:
-            - Trả lời bằng tiếng Việt, thân thiện, rõ ràng, định dạng Markdown (in đậm, danh sách).
-            - CHỈ SỬ DỤNG thông tin từ DỮ LIỆU TOUR HIỆN CÓ bên dưới. Nếu không có thông tin, hãy nói "Hiện tại TrekMate chưa có thông tin này".
+            - Trả lời bằng tiếng Việt, thân thiện, rõ ràng, định dạng Markdown (in đậm, danh sách, kèm link khi giới thiệu tour).
+            - CHỈ SỬ DỤNG thông tin từ DỮ LIỆU TOUR HIỆN CÓ bên dưới (bao gồm tên tour, giá tour, độ khó, thời tiết và link tour chi tiết). Nếu không có thông tin, hãy nói "Hiện tại TrekMate chưa có thông tin này".
+            - Khi gợi ý tour hoặc gửi link website cho khách hàng, hãy sử dụng đường dẫn trang web chính thức của TrekMate là: https://trek-mate-fe.vercel.app (ví dụ link chi tiết tour: https://trek-mate-fe.vercel.app/tours/{slug}). TUYỆT ĐỐI KHÔNG sử dụng trekmate.vn hoặc bất kỳ tên miền nào khác.
+            - Khi tư vấn tour, hãy nêu rõ giá tiền (nếu có trong dữ liệu) để khách dễ cân nhắc ngân sách.
             - Luôn gợi ý khách hàng xem thêm trên website.
-            
             %s
             """;
 
@@ -63,7 +64,7 @@ public class AiChatService {
     private List<String> generateSuggestions(String userMessage, String aiAnswer) {
         // Có thể dùng logic phân tích đơn giản để gợi ý
         String lowerMsg = userMessage.toLowerCase();
-        
+
         if (lowerMsg.contains("thời tiết")) {
             return Arrays.asList("Đồ cần mang theo?", "Nên chọn tour nào?", "Khó khăn gì cần lưu ý?");
         } else if (lowerMsg.contains("đồ") || lowerMsg.contains("mang")) {
@@ -71,7 +72,7 @@ public class AiChatService {
         } else if (lowerMsg.contains("chọn") || lowerMsg.contains("tour nào")) {
             return Arrays.asList("Tour dễ cho người mới?", "Cần chuẩn bị gì?", "Thời tiết tuần sau?");
         }
-        
+
         // Mặc định
         return Arrays.asList("Tư vấn tour cho người mới", "Gợi ý đồ cần mang", "Thời tiết tuần sau");
     }

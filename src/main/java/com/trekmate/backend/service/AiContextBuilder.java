@@ -2,6 +2,7 @@ package com.trekmate.backend.service;
 
 import com.trekmate.backend.model.Tour;
 import com.trekmate.backend.model.enums.TourStatus;
+import com.trekmate.backend.repository.TourDepartureRepository;
 import com.trekmate.backend.repository.TourRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,7 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -17,10 +19,11 @@ import java.util.List;
 public class AiContextBuilder {
 
     private final TourRepository tourRepository;
+    private final TourDepartureRepository tourDepartureRepository;
     private final WeatherService weatherService;
 
     /**
-     * Xay dung ngam context de cung cap cho Gemini (thong tin tour dang hoat dong, thoi tiet cac diem chinh).
+     * Xay dung ngam context de cung cap cho Gemini (thong tin tour dang hoat dong, thoi tiet cac diem chinh, gia tour, link web).
      */
     public String buildSystemContext() {
         try {
@@ -34,11 +37,18 @@ public class AiContextBuilder {
                 context.append("Hiện tại không có tour nào đang mở.\n");
             } else {
                 for (Tour tour : activeTours.getContent()) {
+                    Optional<BigDecimal> minPriceOpt = tourDepartureRepository.findMinPriceByTourId(tour.getId());
+                    String priceStr = minPriceOpt
+                            .map(p -> String.format("%,.0f VNĐ/người", p.doubleValue()))
+                            .orElse("Chưa có lịch khởi hành mở bán");
+
                     context.append(String.format("- Tên tour: %s (slug: %s)\n", tour.getTitle(), tour.getSlug()));
+                    context.append(String.format("  Giá tour từ: %s\n", priceStr));
                     context.append(String.format("  Mức độ khó: %s, Thời gian: %s ngày %s đêm.\n", 
                             tour.getDifficulty(), tour.getDurationDays(), tour.getDurationNights()));
                     context.append(String.format("  Điểm xuất phát: %s, Kết thúc: %s\n", 
                             tour.getStartLocation(), tour.getEndLocation()));
+                    context.append(String.format("  Link tour chi tiết: https://trek-mate-fe.vercel.app/tours/%s\n", tour.getSlug()));
                     
                     // Lấy thời tiết cho điểm xuất phát nếu có tọa độ (dự báo 7 ngày)
                     if (tour.getStartLat() != null && tour.getStartLng() != null) {
