@@ -80,6 +80,7 @@ public class SecurityConfig {
                                                                 "/v1/payments/payos/confirm/**")
                                                 .permitAll()
                                                 // ── Admin only ──────────────────────────────────────────
+                                                .requestMatchers("/admin/dashboard/**").hasRole("ADMIN")
                                                 .requestMatchers("/admin/users/**").hasRole("ADMIN")
                                                 .requestMatchers("/admin/tours/**").hasAnyRole("GUIDE", "ADMIN")
                                                 .requestMatchers("/admin/tour-guides/**").hasAnyRole("GUIDE", "ADMIN")

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,5 +32,36 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countByDepartureTourId(@Param("tourId") UUID tourId);
 
     long countByUserIdAndStatus(UUID userId, BookingStatus status);
+
+    long countByBookedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b " +
+           "WHERE b.status IN (com.trekmate.backend.model.enums.BookingStatus.CONFIRMED, " +
+           "com.trekmate.backend.model.enums.BookingStatus.COMPLETED, " +
+           "com.trekmate.backend.model.enums.BookingStatus.ONGOING) " +
+           "AND b.bookedAt BETWEEN :start AND :end")
+    BigDecimal sumRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b " +
+           "WHERE b.status IN (com.trekmate.backend.model.enums.BookingStatus.CONFIRMED, " +
+           "com.trekmate.backend.model.enums.BookingStatus.COMPLETED, " +
+           "com.trekmate.backend.model.enums.BookingStatus.ONGOING)")
+    BigDecimal sumTotalRevenue();
+
+    List<Booking> findTop5ByOrderByBookedAtDesc();
+
+    @Query("SELECT b.status, COUNT(b) FROM Booking b GROUP BY b.status")
+    List<Object[]> countBookingsGroupByStatus();
+
+    @Query("SELECT b.departure.tour, COUNT(b), SUM(b.totalPrice) " +
+           "FROM Booking b " +
+           "WHERE b.status IN (com.trekmate.backend.model.enums.BookingStatus.CONFIRMED, " +
+           "com.trekmate.backend.model.enums.BookingStatus.COMPLETED, " +
+           "com.trekmate.backend.model.enums.BookingStatus.ONGOING) " +
+           "GROUP BY b.departure.tour " +
+           "ORDER BY COUNT(b) DESC")
+    List<Object[]> findPopularTours(Pageable pageable);
 }
+
+
 

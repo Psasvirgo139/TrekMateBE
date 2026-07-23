@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,6 +17,9 @@ public interface TourRepository extends JpaRepository<Tour, UUID> {
     Optional<Tour> findBySlug(String slug);
     boolean existsBySlug(String slug);
     Page<Tour> findByStatus(TourStatus status, Pageable pageable);
+    long countByStatus(TourStatus status);
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
 
     @Query("SELECT t FROM Tour t WHERE " +
            "(CAST(:search AS string) IS NULL OR LOWER(t.title) LIKE CAST(:search AS string) OR LOWER(t.shortDescription) LIKE CAST(:search AS string)) " +
